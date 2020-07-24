@@ -27,7 +27,7 @@ public class SendController {
     @RequestMapping("/multiSend")
     public String multiSend(){
         StringBuilder times=new StringBuilder();
-        for(int i=0;i<10;i++){
+        for(int i=0;i<100;i++){
             long time=System.nanoTime();
             amqpTemplate.convertAndSend("lyhTest1","第"+i+"次发送的时间："+time);
             times.append(time+"<br>");

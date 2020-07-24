@@ -1,6 +1,6 @@
 package com.lyh.demo;
 
-import com.lyh.demo.controller.SendController;
+//import com.lyh.demo.controller.SendController;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -16,18 +16,18 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 @RunWith(SpringRunner.class)
 @SpringBootTest
 public class DemoApplicationTests {
-	private MockMvc mvc;
-
-	@Before
-	public void set() throws Exception {
-		mvc = MockMvcBuilders.standaloneSetup(new SendController()).build();
-	}
-
-	@Test
-	public void contextLoads() throws Exception {
-		mvc.perform(MockMvcRequestBuilders.get("/helloWorld").accept(MediaType.APPLICATION_JSON))
-				.andExpect(MockMvcResultMatchers.status().isOk())
-				.andDo(MockMvcResultHandlers.print())
-				.andReturn();
-	}
+//	private MockMvc mvc;
+//
+//	@Before
+//	public void set() throws Exception {
+//		mvc = MockMvcBuilders.standaloneSetup(new SendController()).build();
+//	}
+//
+//	@Test
+//	public void contextLoads() throws Exception {
+//		mvc.perform(MockMvcRequestBuilders.get("/helloWorld").accept(MediaType.APPLICATION_JSON))
+//				.andExpect(MockMvcResultMatchers.status().isOk())
+//				.andDo(MockMvcResultHandlers.print())
+//				.andReturn();
+//	}
 }
