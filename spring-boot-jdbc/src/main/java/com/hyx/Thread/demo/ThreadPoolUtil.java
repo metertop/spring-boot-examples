@@ -30,15 +30,15 @@ public class ThreadPoolUtil {
         threadPoolTaskExecutor.submit(task);
 
 
-        Future<CompareDataCountResult> future = (Future<CompareDataCountResult>) threadPoolTaskExecutor.submit(task);
-        try {
-            System.out.println("返回的结果  pass=" + future.get().getPassCount());
-            System.out.println("返回的结果 fail=" + future.get().getFailCount());
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        }
+//        Future<CompareDataCountResult> future = (Future<CompareDataCountResult>) threadPoolTaskExecutor.submit(task);
+//        try {
+//            System.out.println("返回的结果  pass=" + future.get().getPassCount());
+//            System.out.println("返回的结果 fail=" + future.get().getFailCount());
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        } catch (ExecutionException e) {
+//            e.printStackTrace();
+//        }
 
 
 

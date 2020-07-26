@@ -263,7 +263,9 @@ public class CheckPositionServiceImpl implements CheckPositionService {
                     }
                     data.setPassCount(passCount);
                     data.setFailCount(failCount);
+                    System.out.println("线程1-->数据一致数量是：" + passCount + "--数据不一致数量是：" + failCount);
                 }
+
             }
 
             class Thread2 implements Runnable{
@@ -293,7 +295,11 @@ public class CheckPositionServiceImpl implements CheckPositionService {
                     }
                     data.setPassCount(passCount);
                     data.setFailCount(failCount);
+
+                    System.out.println("线程2-->数据一致数量是：" + passCount + "--数据不一致数量是：" + failCount);
+
                 }
+
             }
 
 
@@ -324,6 +330,9 @@ public class CheckPositionServiceImpl implements CheckPositionService {
                     }
                     data.setPassCount(passCount);
                     data.setFailCount(failCount);
+
+                    System.out.println("线程3-->数据一致数量是：" + passCount + "--数据不一致数量是：" + failCount);
+
                 }
             }
 
