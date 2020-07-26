@@ -1,0 +1,38 @@
+package com.hyx.Thread.demo;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * @Description:
+ * @Author: haoyuexun
+ * @Date: 2020-07-25 11:43
+ */
+
+@RestController
+@RequestMapping("/data")
+public class CheckDataController {
+
+    private Logger logger = LoggerFactory.getLogger(CheckDataController.class);
+
+    @Autowired
+    private CheckPositionService checkPositionService;
+
+    @RequestMapping("/check")
+    public void checkData() throws Exception{
+
+        CheckTableInfo checkTableInfo = new CheckTableInfo();
+        checkTableInfo.setNewTable("user_assets");
+        checkTableInfo.setOldTable("stu_point");
+        checkTableInfo.setNewTableRelationField("stu_point_id");
+        checkTableInfo.setQueryNewTableFileds("stu_id,count,sku_type");
+        checkTableInfo.setQueryOldTableFileds("stu_id,content,type");
+        checkTableInfo.setQueryOldTableWhereCondition("id<10000");
+        checkTableInfo.setOldTableRelationField("id");
+        checkPositionService.checkData(checkTableInfo);
+    }
+}
+

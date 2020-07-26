@@ -1,7 +1,6 @@
 package com.hyx.Thread.demo;
 
 import java.io.Serializable;
-import java.util.LinkedList;
 
 /**
  * @Description:

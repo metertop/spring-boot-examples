@@ -10,6 +10,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport;
 
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+
 /**
  * @Description:
  * @Author: haoyuexun
@@ -25,6 +28,22 @@ public class ThreadPoolUtil {
 
     public void executeTask(Runnable task){
         threadPoolTaskExecutor.submit(task);
+
+
+        Future<CompareDataCountResult> future = (Future<CompareDataCountResult>) threadPoolTaskExecutor.submit(task);
+        try {
+            System.out.println("返回的结果  pass=" + future.get().getPassCount());
+            System.out.println("返回的结果 fail=" + future.get().getFailCount());
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+
+
+
+
+
         //try {
         //注意task.get()会阻塞，直到返回数据为止，所以一般这样用法很少用
         //resp = task.get();
@@ -35,11 +54,10 @@ public class ThreadPoolUtil {
         //}
     }
 
-    /**
-     * @Description:
-     * @Author: haoyuexun
-     * @Date: 2020/7/24 12:17
-     */
+
+
+
+
     @SpringBootConfiguration
     public static class WebConfig extends WebMvcConfigurationSupport {
         @Value("${server.port}")
@@ -57,12 +75,12 @@ public class ThreadPoolUtil {
         @Value("${threadpool.keep-alive-seconds}")
         private int keepAliveSeconds;
 
-        @Override
-        protected void addInterceptors(InterceptorRegistry registry) {
-            super.addInterceptors(registry);
-            // 将 ApiInterceptor 拦截器类添加进去
-            registry.addInterceptor(new ApiInterceptor());
-        }
+//        @Override
+//        protected void addInterceptors(InterceptorRegistry registry) {
+//            super.addInterceptors(registry);
+//            // 将 ApiInterceptor 拦截器类添加进去
+//            registry.addInterceptor(new ApiInterceptor());
+//        }
 
         @Bean(name="threadPoolTaskExecutor")
         public ThreadPoolTaskExecutor threadPoolTaskExecutor(){

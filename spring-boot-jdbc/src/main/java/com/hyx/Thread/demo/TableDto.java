@@ -1,8 +1,7 @@
 package com.hyx.Thread.demo;
 
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
+
 
 
 /**
@@ -21,20 +20,12 @@ public class TableDto {
         this.tableName = tableName;
     }
 
-    public Long getTableLength() {
+    public Integer getTableLength() {
         return tableLength;
     }
 
-    public void setTableLength(Long tableLength) {
+    public void setTableLength(Integer tableLength) {
         this.tableLength = tableLength;
-    }
-
-    public LinkedList<String> getTableColumnsValues() {
-        return tableColumnsValues;
-    }
-
-    public void setTableColumnsValues(LinkedList<String> tableColumnsValues) {
-        this.tableColumnsValues = tableColumnsValues;
     }
 
     public String getTableColumns() {
@@ -45,9 +36,17 @@ public class TableDto {
         this.tableColumns = tableColumns;
     }
 
-    private String tableName;
-    private Long tableLength;
-    private String tableColumns;
-    private LinkedList<String> tableColumnsValues;
-
+    public List<String> getTableColumnsValues() {
+        return tableColumnsValues;
     }
+
+    public void setTableColumnsValues(List<String> tableColumnsValues) {
+        this.tableColumnsValues = tableColumnsValues;
+    }
+
+    private String tableName;
+    private Integer tableLength;
+    private String tableColumns;
+    private List<String> tableColumnsValues;
+
+}

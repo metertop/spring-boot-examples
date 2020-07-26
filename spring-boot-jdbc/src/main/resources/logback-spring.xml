@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/base.xml" />
+    <logger name="org.springframework.web" level="INFO"/>
+    <logger name="org.springboot.sample" level="TRACE" />
+
+    <!-- 开发、测试环境 -->
+    <springProfile name="dev,test">
+        <logger name="org.springframework.web" level="INFO"/>
+        <logger name="org.springboot.sample" level="INFO" />
+    </springProfile>
+
+    <!-- 生产环境 -->
+    <springProfile name="pro">
+        <logger name="org.springframework.web" level="ERROR"/>
+        <logger name="org.springboot.sample" level="ERROR" />
+    </springProfile>
+
+</configuration>
+
+<!--
+<configuration scan="true" scanPeriod="60 seconds">
+
+&lt;!&ndash;日志输入到控制台&ndash;&gt;
+<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+        <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger - %msg%n</pattern>
+    </encoder>
+</appender>
+
+&lt;!&ndash;<appender name="permission" class="ch.qos.logback.core.rolling.RollingFileAppender">&ndash;&gt;
+&lt;!&ndash;<file>${catalina.home}/logs/permission.log</file>&ndash;&gt;
+&lt;!&ndash;<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">&ndash;&gt;
+&lt;!&ndash;<FileNamePattern>${catalina.home}/logs/permission.%d{yyyy-MM-dd}.log.gz</FileNamePattern>&ndash;&gt;
+&lt;!&ndash;</rollingPolicy>&ndash;&gt;
+&lt;!&ndash;<layout class="ch.qos.logback.classic.PatternLayout">&ndash;&gt;
+&lt;!&ndash;<pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger - %msg%n</pattern>&ndash;&gt;
+&lt;!&ndash;</layout>&ndash;&gt;
+&lt;!&ndash;</appender>&ndash;&gt;
+&lt;!&ndash;&ndash;&gt;
+&lt;!&ndash;<logger name="xxx" level="INFO">&ndash;&gt;
+&lt;!&ndash;<appender-ref ref="permission"/>&ndash;&gt;
+&lt;!&ndash;</logger>&ndash;&gt;
+
+&lt;!&ndash; TRACE < DEBUG < INFO < WARN < ERROR &ndash;&gt;
+<root level="INFO">
+    <appender-ref ref="STDOUT" />
+</root>
+
+</configuration>-->

@@ -8,7 +8,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupp
  * @Author: haoyuexun
  * @Date: 2020/7/24 13:36
  */
-public class WebConfig  extends WebMvcConfigurationSupport {
+public class WebConfig extends WebMvcConfigurationSupport {
     @Override
     protected void addInterceptors(InterceptorRegistry registry) {
         super.addInterceptors(registry);
