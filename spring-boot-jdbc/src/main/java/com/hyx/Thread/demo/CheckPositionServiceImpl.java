@@ -116,9 +116,9 @@ public class CheckPositionServiceImpl implements CheckPositionService {
                 System.out.println("Succeeded connecting to the Database!");
             }
             PreparedStatement psCount = con.prepareStatement(sqlCount);
-            PreparedStatement psConcent = con.prepareStatement(sqlContent);
+            PreparedStatement psContent = con.prepareStatement(sqlContent);
             rsCount = psCount.executeQuery();
-            rsContent = psConcent.executeQuery();
+            rsContent = psContent.executeQuery();
 
             oldTableDto.setTableName(oldTable);
             oldTableDto.setTableColumns(oldFileds);

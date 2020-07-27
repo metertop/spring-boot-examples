@@ -30,7 +30,7 @@ public class CheckDataController {
         checkTableInfo.setNewTableRelationField("stu_point_id");
         checkTableInfo.setQueryNewTableFileds("stu_id,count,sku_type");
         checkTableInfo.setQueryOldTableFileds("stu_id,content,type");
-        checkTableInfo.setQueryOldTableWhereCondition("id>1679000 and id<1779000");
+        checkTableInfo.setQueryOldTableWhereCondition("1=1");
         checkTableInfo.setOldTableRelationField("id");
         checkPositionService.checkData(checkTableInfo);
 
