@@ -1,4 +1,6 @@
 package com.hyx.Thread.demo;
+import org.apache.http.client.utils.DateUtils;
+import org.apache.http.impl.client.FutureRequestExecutionMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,8 +12,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport;
 
+import java.text.DateFormat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @Description:
@@ -21,16 +27,13 @@ import java.util.concurrent.Future;
 
 @Component
 public class ThreadPoolUtil {
-    private static final Logger LOG = LoggerFactory.getLogger(ThreadPoolUtil.class);
+    private static final Logger logger = LoggerFactory.getLogger(ThreadPoolUtil.class);
 
     @Autowired
     private ThreadPoolTaskExecutor threadPoolTaskExecutor;
 
-    public void executeTask(Runnable task){
+    public void executeTask(Runnable task) {
         threadPoolTaskExecutor.submit(task);
-
-
-//        Future<CompareDataCountResult> future = (Future<CompareDataCountResult>) threadPoolTaskExecutor.submit(task);
 //        try {
 //            System.out.println("返回的结果  pass=" + future.get().getPassCount());
 //            System.out.println("返回的结果 fail=" + future.get().getFailCount());
@@ -40,10 +43,6 @@ public class ThreadPoolUtil {
 //            e.printStackTrace();
 //        }
 
-
-
-
-
         //try {
         //注意task.get()会阻塞，直到返回数据为止，所以一般这样用法很少用
         //resp = task.get();
@@ -52,8 +51,43 @@ public class ThreadPoolUtil {
         //} catch (ExecutionException e) {
         //e.printStackTrace();
         //}
+
     }
 
+
+    public void executeTasks(List<Runnable> tasks) {
+        long start = System.currentTimeMillis();
+        logger.error("---任务开始：当前时间:{}" , DateUtil.getDateToString(start));
+        List<Future<?>> result = new ArrayList<>();
+        for(Runnable task: tasks) {
+            Future<?> taskResult = threadPoolTaskExecutor.submit(task);
+            result.add(taskResult);
+        }
+
+        while (true) {
+            boolean isAllDone = true;
+            for (Future<?> taskResult : result) {
+                isAllDone &= ( taskResult.isDone() || taskResult.isCancelled() );
+            }
+            if (isAllDone) {
+                // 任务都执行完毕，跳出循环
+                long end = System.currentTimeMillis();
+                long useSecond = (end-start)/1000;
+                logger.error("---任务结束，当前时间{}", DateUtil.getDateToString(end));
+                logger.error("--任务用时:{}秒", useSecond);
+                break;
+            }
+//            try {
+//
+//                logger.info("waiting and sleep 1000 ...");
+//                TimeUnit.MILLISECONDS.sleep(1000);
+//            } catch (Exception e) {
+//                System.out.println(e.toString());
+//                break;
+//            }
+        }
+
+    }
 
 
 

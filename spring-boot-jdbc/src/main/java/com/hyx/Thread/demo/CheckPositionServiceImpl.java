@@ -130,7 +130,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
             while(rsContent.next()){
                 tableColumnValues.add(getResultByType(rsContent));
             }
-            logger.error("老表查询数据是：{}", JSON.toJSONString(tableColumnValues));
+//            logger.error("老表查询数据是：{}", JSON.toJSONString(tableColumnValues));
             oldTableDto.setTableColumnsValues(tableColumnValues);
             logger.error("老表设置数据完毕！");
             rsCount.close();
@@ -199,8 +199,6 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 
     @Override
     public void checkData(CheckTableInfo checkTableInfo) throws Exception{
-
-
         String newTableName = checkTableInfo.getNewTable();
         String oldTableName = checkTableInfo.getOldTable();
         String newTableRelationField = checkTableInfo.getNewTableRelationField();
@@ -212,16 +210,58 @@ public class CheckPositionServiceImpl implements CheckPositionService {
         List<String> oldTableValues = oldTableDto.getTableColumnsValues();
         logger.error("老表数据大小为：{}", oldTableValues.size());
 
+        class MyThread implements Runnable{
+            CompareDataCountResult data;
+            List<String> dataList;
+            String threadName;
 
+            public MyThread(String threadName, List<String> dataList, CompareDataCountResult data) {
+                this.data = data;
+                this.dataList = dataList;
+                this.threadName = threadName;
+            }
+            @Override
+            public void run() {
+                AtomicInteger passCount = new AtomicInteger(0);
+                AtomicInteger failCount = new AtomicInteger(0);
+//                logger.info("线程-[{}]最后结果是：{}", threadName, JSON.toJSONString(dataList));
+
+//                    for (String oldTableValue: threadList1){
+
+                Iterator<String> it = dataList.iterator();
+//
+                while(it.hasNext()) {
+                    String oldTableValue = it.next();
+                    Boolean isPass = compareOldAndNewPass(newTableName, queryNewTableFields, newTableRelationField, oldTableName, queyOldTableFileds,  oldTableValue);
+                    if (isPass) {
+                        passCount.incrementAndGet();
+                    }else {
+                        failCount.incrementAndGet();
+                    }
+                }
+                data.setPassCount(passCount.get());
+                data.setFailCount(failCount.get());
+                logger.error("线程-[{}]数据一致数量是：{}--数据不一致数量是：{}--->当前时间戳是:{}", threadName, passCount.get(), failCount.get(), System.currentTimeMillis());
+            }
+
+        }
 
         if(oldTableValues != null && oldTableValues.size() > 0) {
             List<String> threadList1 = new ArrayList<>();
             List<String> threadList2 = new ArrayList<>();
             List<String> threadList3 = new ArrayList<>();
-            if (oldTableValues.size() <= 3) {
+            List<String> threadList4 = new ArrayList<>();
+            List<String> threadList5 = new ArrayList<>();
+            List<String> threadList6 = new ArrayList<>();
+            List<String> threadList7 = new ArrayList<>();
+            List<String> threadList8 = new ArrayList<>();
+            List<String> threadList9 = new ArrayList<>();
+            List<String> threadList10 = new ArrayList<>();
+
+            if (oldTableValues.size() <= 10) {
                 threadList1.addAll(oldTableValues);
             } else {
-                int stepLen = oldTableValues.size() / 3;
+                int stepLen = oldTableValues.size() / 10;
                 logger.error("stepLen={}", stepLen);
                 int i = 1;
                 for (String oldTableValue : oldTableValues) {
@@ -229,14 +269,93 @@ public class CheckPositionServiceImpl implements CheckPositionService {
                         threadList1.add(oldTableValue);
                     } else if (i > stepLen && i <= stepLen * 2) {
                         threadList2.add(oldTableValue);
-                    } else {
+                    } else if (stepLen * 2> stepLen && i <= stepLen * 3) {
                         threadList3.add(oldTableValue);
+                    } else if(stepLen * 3> stepLen && i <= stepLen * 4) {
+                        threadList4.add(oldTableValue);
+                    } else if (stepLen * 4> stepLen && i <= stepLen * 5) {
+                        threadList5.add(oldTableValue);
+                    } else if (stepLen * 5> stepLen && i <= stepLen * 6) {
+                        threadList6.add(oldTableValue);
+                    } else if (stepLen * 6> stepLen && i <= stepLen * 7) {
+                        threadList7.add(oldTableValue);
+                    } else if (stepLen * 7> stepLen && i <= stepLen * 8) {
+                        threadList8.add(oldTableValue);
+                    } else if (stepLen * 8> stepLen && i <= stepLen * 9) {
+                        threadList9.add(oldTableValue);
+                    } else {
+                        threadList10.add(oldTableValue);
                     }
                     i += 1;
                 }
             }
 
-            class Thread1 implements Runnable{
+            logger.error("初始化10个线程完毕！--trSize1={},trSize2={},trSize3={},trSize4={},trSize5={},trSize6={},trSize7={},trSize8={},trSize9={},trSize10={}",
+                    threadList1.size(), threadList2.size(), threadList3.size(),threadList4.size(), threadList5.size(),
+                    threadList6.size(),threadList7.size(), threadList8.size(), threadList9.size(), threadList10.size());
+
+            CompareDataCountResult data1 = new CompareDataCountResult();
+            CompareDataCountResult data2 = new CompareDataCountResult();
+            CompareDataCountResult data3 = new CompareDataCountResult();
+            CompareDataCountResult data4 = new CompareDataCountResult();
+            CompareDataCountResult data5 = new CompareDataCountResult();
+            CompareDataCountResult data6 = new CompareDataCountResult();
+            CompareDataCountResult data7 = new CompareDataCountResult();
+            CompareDataCountResult data8 = new CompareDataCountResult();
+            CompareDataCountResult data9 = new CompareDataCountResult();
+            CompareDataCountResult data10 = new CompareDataCountResult();
+
+            MyThread myThread1 = new MyThread("线程1", threadList1, data1);
+            MyThread myThread2 = new MyThread("线程2", threadList2, data2);
+
+            MyThread myThread3 = new MyThread("线程3", threadList3, data3);
+
+            MyThread myThread4 = new MyThread("线程4", threadList4, data4);
+
+            MyThread myThread5 = new MyThread("线程5", threadList5, data5);
+            MyThread myThread6 = new MyThread("线程6", threadList6, data6);
+
+            MyThread myThread7 = new MyThread("线程7", threadList7, data7);
+
+            MyThread myThread8 = new MyThread("线程8", threadList8, data8);
+
+            MyThread myThread9 = new MyThread("线程9", threadList9, data9);
+            MyThread myThread10 = new MyThread("线程10", threadList10, data10);
+
+
+/*
+
+            threadPoolUtil.executeTask(myThread1);
+            threadPoolUtil.executeTask(myThread2);
+            threadPoolUtil.executeTask(myThread3);
+            threadPoolUtil.executeTask(myThread4);
+            threadPoolUtil.executeTask(myThread5);
+            threadPoolUtil.executeTask(myThread6);
+            threadPoolUtil.executeTask(myThread7);
+            threadPoolUtil.executeTask(myThread8);
+            threadPoolUtil.executeTask(myThread9);
+            threadPoolUtil.executeTask(myThread10);
+*/
+        List<Runnable> listMyThread = new ArrayList<>();
+        listMyThread.add(myThread1);
+        listMyThread.add(myThread2);
+        listMyThread.add(myThread3);
+        listMyThread.add(myThread4);
+        listMyThread.add(myThread5);
+        listMyThread.add(myThread6);
+        listMyThread.add(myThread7);
+        listMyThread.add(myThread8);
+        listMyThread.add(myThread9);
+        listMyThread.add(myThread10);
+
+        threadPoolUtil.executeTasks(listMyThread);
+
+
+
+
+
+
+           /* class Thread1 implements Runnable{
                 CompareDataCountResult data;
 
                 public Thread1(CompareDataCountResult data) {
@@ -345,7 +464,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
             threadPoolUtil.executeTask(new Thread2(data2));
 
             CompareDataCountResult data3 = new CompareDataCountResult();
-            threadPoolUtil.executeTask(new Thread3(data3));
+            threadPoolUtil.executeTask(new Thread3(data3));*/
 
            /* if (threadList1.size() > 0) {
                 Runnable runnable = () -> {

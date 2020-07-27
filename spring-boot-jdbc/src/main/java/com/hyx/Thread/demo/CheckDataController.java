@@ -32,12 +32,8 @@ public class CheckDataController {
         checkTableInfo.setQueryOldTableFileds("stu_id,content,type");
         checkTableInfo.setQueryOldTableWhereCondition("id>1679000 and id<1779000");
         checkTableInfo.setOldTableRelationField("id");
-        long start = System.currentTimeMillis();
         checkPositionService.checkData(checkTableInfo);
-        long end = System.currentTimeMillis();
 
-        long useTime = (end-start)/1000;
-        logger.info("对比数据使用的时间为：{} 秒", useTime );
     }
 }
 
