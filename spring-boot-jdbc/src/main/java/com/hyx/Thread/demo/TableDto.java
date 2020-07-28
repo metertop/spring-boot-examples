@@ -1,5 +1,6 @@
 package com.hyx.Thread.demo;
 
+import java.io.Serializable;
 import java.util.List;
 
 
@@ -9,8 +10,10 @@ import java.util.List;
  * @Author: haoyuexun
  * @Date: 2020/7/24 14:11
  */
-public class TableDto {
+public class TableDto implements Serializable {
 
+
+    private static final long serialVersionUID = 8179076974725793611L;
 
     public String getTableName() {
         return tableName;

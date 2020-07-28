@@ -105,6 +105,30 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 
         logger.error("sqlCount-->{}", sqlCount);
         logger.error("sqlContent-->{}", sqlContent);
+
+
+        class MyThread implements Runnable{
+            List<String> dataList;
+            String threadName;
+            String sqlString;
+
+            public MyThread(String threadName, String sqlString, Integer totalDataCounts) {
+                this.dataList = dataList;
+                this.threadName = threadName;
+                this.sqlString = sqlString;
+            }
+            @Override
+            public void run() {
+                getTableResults(sqlString);
+            }
+
+        }
+
+
+
+
+
+
         ResultSet rsCount = null;
         ResultSet rsContent = null;
         List<String> tableColumnValues = new ArrayList<>();
@@ -146,6 +170,82 @@ public class CheckPositionServiceImpl implements CheckPositionService {
         return oldTableDto;
     }
 
+    private List<String> getTableResults(String sqlString, Integer totalDataRows, Integer pageSize) {
+        Integer pageTotal = totalDataRows/pageSize + 1;
+        sqlString = sqlString + "limit ?, ?";
+        ResultSet rsContent = null;
+        List<String> tableColumnValues = new ArrayList<>();
+        List<String> tableColumnValuesAll = new ArrayList<>();
+            try {
+
+                SqlSession session = getSqlSession();
+                Connection con = session.getConnection();
+                if(!con.isClosed()){
+                    System.out.println("Succeeded connecting to the Database!");
+                }
+                for (int pageNo=0; pageNo<pageTotal; pageNo++) {
+                    PreparedStatement psContent = con.prepareStatement(sqlString);
+                    psContent.setInt(1, (pageNo-1)*pageSize);
+                    psContent.setInt(2, pageSize);
+                    rsContent = psContent.executeQuery();
+
+                    while (rsContent.next()) {
+                        tableColumnValues.add(getResultByType(rsContent));
+                    }
+                    tableColumnValuesAll.addAll(tableColumnValues);
+                    logger.error("老表设置数据完毕！");
+
+                    rsContent.close();
+                    rsContent.close();
+                }
+                con.close();
+                session.close();
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        return tableColumnValuesAll;
+
+    }
+
+
+    private List<String> getTableRows(String tableName) {
+        Integer pageTotal = totalDataRows/pageSize + 1;
+        sqlString = sqlString + "limit ?, ?";
+        ResultSet rsContent = null;
+        List<String> tableColumnValues = new ArrayList<>();
+        List<String> tableColumnValuesAll = new ArrayList<>();
+        try {
+
+            SqlSession session = getSqlSession();
+            Connection con = session.getConnection();
+            if(!con.isClosed()){
+                System.out.println("Succeeded connecting to the Database!");
+            }
+            for (int pageNo=0; pageNo<pageTotal; pageNo++) {
+                PreparedStatement psContent = con.prepareStatement(sqlString);
+                psContent.setInt(1, (pageNo-1)*pageSize);
+                psContent.setInt(2, pageSize);
+                rsContent = psContent.executeQuery();
+
+                while (rsContent.next()) {
+                    tableColumnValues.add(getResultByType(rsContent));
+                }
+                tableColumnValuesAll.addAll(tableColumnValues);
+                logger.error("老表设置数据完毕！");
+
+                rsContent.close();
+                rsContent.close();
+            }
+            con.close();
+            session.close();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return tableColumnValuesAll;
+
+    }
 
     private List<String> queryResultByColumn(String sql) {
         List<String> resultList = new ArrayList<>();
