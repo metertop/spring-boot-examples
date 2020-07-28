@@ -16,4 +16,6 @@ public interface CheckPositionService {
     TableDto getOldTableDetail(CheckTableInfo checkTableInfo);
 
     void checkData(CheckTableInfo checkTableInfo) throws Exception;
+
+    void check2(CheckTableInfo checkTableInfo);
 }

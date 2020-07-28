@@ -105,30 +105,6 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 
         logger.error("sqlCount-->{}", sqlCount);
         logger.error("sqlContent-->{}", sqlContent);
-
-
-        class MyThread implements Runnable{
-            List<String> dataList;
-            String threadName;
-            String sqlString;
-
-            public MyThread(String threadName, String sqlString, Integer totalDataCounts) {
-                this.dataList = dataList;
-                this.threadName = threadName;
-                this.sqlString = sqlString;
-            }
-            @Override
-            public void run() {
-                getTableResults(sqlString);
-            }
-
-        }
-
-
-
-
-
-
         ResultSet rsCount = null;
         ResultSet rsContent = null;
         List<String> tableColumnValues = new ArrayList<>();
@@ -170,9 +146,127 @@ public class CheckPositionServiceImpl implements CheckPositionService {
         return oldTableDto;
     }
 
-    private List<String> getTableResults(String sqlString, Integer totalDataRows, Integer pageSize) {
+    @Override
+    public void check2(CheckTableInfo checkTableInfo){
+
+
+        String oldTable = checkTableInfo.getOldTable();
+        String oldRealtionField = checkTableInfo.getOldTableRelationField();
+        String oldFileds = oldRealtionField + "," +checkTableInfo.getQueryOldTableFileds();
+        String whereCondition = checkTableInfo.getQueryOldTableWhereCondition();
+
+        String newTable = checkTableInfo.getNewTable();
+        String newTableRelationField = checkTableInfo.getNewTableRelationField();
+        String newFileds = checkTableInfo.getNewTable();
+
+        TableDto oldTableDto = new TableDto();
+
+        String sqlCount = String.format("select count(1) as rowCount from %s where %s",  oldTable, whereCondition);
+        String sqlContent = String.format("select %s from %s where %s", oldFileds, oldTable, whereCondition);
+
+        logger.error("sqlCount-->{}", sqlCount);
+        logger.error("sqlContent-->{}", sqlContent);
+
+        String whereSql = "";
+        Integer pageSize = 10000;
+        Integer totalDataRows = getTableRows(oldTable, whereCondition);
         Integer pageTotal = totalDataRows/pageSize + 1;
-        sqlString = sqlString + "limit ?, ?";
+        if (!whereCondition.trim().equals("") && whereCondition != null) {
+            whereSql = String.format(" where %s", whereCondition);
+        }
+        String oldTablesqlString = String.format("select %s from %s%s", oldFileds, oldTable, whereSql);
+
+
+        class MyDataThread implements Runnable{
+            String threadName;
+            String querySql;
+            Integer pageSize;
+            Integer pageNoStart;
+            Integer pageNoEnd;
+
+            public MyDataThread(String threadName, String querySql, Integer pageNoStart, Integer pageNoEnd,
+                            Integer pageSize) {
+                this.threadName = threadName;
+                this.pageNoStart = pageNoStart;
+                this.pageNoEnd = pageNoEnd;
+                this.pageSize = pageSize;
+                this.querySql = querySql;
+            }
+            @Override
+            public void run() {
+                List<String> resultList = new ArrayList<>();
+                List<String> resultListAll = new ArrayList<>();
+                for (int pageNo=pageNoStart; pageNo<= pageNoEnd; pageNo++) {
+                    resultList = getTableResults(querySql, pageNo, pageSize);
+                    resultListAll.addAll(resultList);
+                }
+                Integer dataTotal = resultListAll.size();
+                logger.error("线程-[{}]旧表数据量为{}--->当前时间戳是:{}", threadName, dataTotal, System.currentTimeMillis());
+
+
+                AtomicInteger passCount = new AtomicInteger(0);
+                AtomicInteger failCount = new AtomicInteger(0);
+
+                Iterator<String> it = resultListAll.iterator();
+
+                while(it.hasNext()) {
+                    String oldTableValue = it.next();
+                    Boolean isPass = compareOldAndNewPass(newTable, newFileds, newTableRelationField, oldTable, oldFileds, oldTableValue);
+                    if (isPass) {
+                        passCount.incrementAndGet();
+                    }else {
+                        failCount.incrementAndGet();
+                    }
+                }
+                logger.error("线程-[{}]数据一致数量是：{}--数据不一致数量是：{}--->当前时间戳是:{}", threadName, passCount.get(), failCount.get(), System.currentTimeMillis());
+
+            }
+
+        }
+
+        List<Runnable> MydataThreadList = new ArrayList<>();
+        int dataRowPerThread = totalDataRows/10;   // 10个线程数,1个线程的数量
+        int pageCount = dataRowPerThread/pageSize+1;   // 每个线程需要的页数
+        if (pageCount == 1) {
+            MyDataThread myDataThread1 = new MyDataThread(oldTable, oldTablesqlString, 1, 1, pageSize);
+            MydataThreadList.add(myDataThread1);
+        } else {
+            logger.error("dataRowPerThread={}", dataRowPerThread);
+
+
+            int pageNoStart = 1;
+            int pageNoEnd = pageCount;
+            for (int i = 1; i <= 10; i++) {
+                if (i > pageCount){
+                    break;
+                }
+                String threadName = "线程" + i;
+                logger.error("线程[{}]->pageNoStart={},pageNoStart={},该线程需要使用页数={}", threadName, pageNoStart, pageNoStart, pageCount);
+                MydataThreadList.add(new MyDataThread("线程" + i, oldTablesqlString, pageNoStart, pageNoEnd, pageSize));
+                pageNoStart = (i - 1) * pageCount + 1;
+                pageNoEnd = i * pageCount + 1;
+
+
+            }
+        }
+
+    }
+
+    /**
+     * @param querySql 查询sql
+     * @param pageNo 查询的页数
+     * @param pageSize 一次查询的数量
+     */
+
+    private List<String> getTableResults(String querySql,Integer pageNo, Integer pageSize) {
+        String whereSql = "";
+//        Integer totalDataRows = this.getTableRows(tableName, whereCondition);
+//        Integer pageTotal = totalDataRows/pageSize + 1;
+//        if (!whereCondition.trim().equals("") && whereCondition != null) {
+//            whereSql = String.format(" where %s", whereCondition);
+//        }
+//        String sqlString = String.format("select %s from %s%s", tableFields, tableName, whereSql);
+        String sqlString = querySql + "limit ?, ?";
         ResultSet rsContent = null;
         List<String> tableColumnValues = new ArrayList<>();
         List<String> tableColumnValuesAll = new ArrayList<>();
@@ -183,21 +277,20 @@ public class CheckPositionServiceImpl implements CheckPositionService {
                 if(!con.isClosed()){
                     System.out.println("Succeeded connecting to the Database!");
                 }
-                for (int pageNo=0; pageNo<pageTotal; pageNo++) {
-                    PreparedStatement psContent = con.prepareStatement(sqlString);
-                    psContent.setInt(1, (pageNo-1)*pageSize);
-                    psContent.setInt(2, pageSize);
-                    rsContent = psContent.executeQuery();
 
-                    while (rsContent.next()) {
-                        tableColumnValues.add(getResultByType(rsContent));
-                    }
-                    tableColumnValuesAll.addAll(tableColumnValues);
-                    logger.error("老表设置数据完毕！");
+                PreparedStatement psContent = con.prepareStatement(sqlString);
+                psContent.setInt(1, (pageNo-1)*pageSize);
+                psContent.setInt(2, pageSize);
+                rsContent = psContent.executeQuery();
 
-                    rsContent.close();
-                    rsContent.close();
+                while (rsContent.next()) {
+                    tableColumnValues.add(getResultByType(rsContent));
                 }
+                tableColumnValuesAll.addAll(tableColumnValues);
+
+                rsContent.close();
+                rsContent.close();
+
                 con.close();
                 session.close();
 
@@ -209,12 +302,14 @@ public class CheckPositionServiceImpl implements CheckPositionService {
     }
 
 
-    private List<String> getTableRows(String tableName) {
-        Integer pageTotal = totalDataRows/pageSize + 1;
-        sqlString = sqlString + "limit ?, ?";
-        ResultSet rsContent = null;
-        List<String> tableColumnValues = new ArrayList<>();
-        List<String> tableColumnValuesAll = new ArrayList<>();
+    private Integer getTableRows(String tableName, String whereCondition) {
+        Integer tableRows = 0;
+        String whereSql = "";
+        ResultSet rsCount = null;
+        if (!whereCondition.trim().equals("") && whereCondition != null) {
+            whereSql = String.format(" where %s", whereCondition);
+        }
+        String sqlStr = String.format("select count(1) from %s%s", tableName, whereSql);
         try {
 
             SqlSession session = getSqlSession();
@@ -222,28 +317,23 @@ public class CheckPositionServiceImpl implements CheckPositionService {
             if(!con.isClosed()){
                 System.out.println("Succeeded connecting to the Database!");
             }
-            for (int pageNo=0; pageNo<pageTotal; pageNo++) {
-                PreparedStatement psContent = con.prepareStatement(sqlString);
-                psContent.setInt(1, (pageNo-1)*pageSize);
-                psContent.setInt(2, pageSize);
-                rsContent = psContent.executeQuery();
 
-                while (rsContent.next()) {
-                    tableColumnValues.add(getResultByType(rsContent));
-                }
-                tableColumnValuesAll.addAll(tableColumnValues);
-                logger.error("老表设置数据完毕！");
+            PreparedStatement psConut = con.prepareStatement(sqlStr);
+            rsCount = psConut.executeQuery();
 
-                rsContent.close();
-                rsContent.close();
+            if(rsCount.next()) {
+                tableRows = rsCount.getInt(1);
             }
+
+            rsCount.close();
+            psConut.close();
             con.close();
             session.close();
 
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return tableColumnValuesAll;
+        return tableRows;
 
     }
 
