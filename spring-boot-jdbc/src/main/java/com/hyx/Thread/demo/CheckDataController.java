@@ -32,7 +32,7 @@ public class CheckDataController {
         checkTableInfo.setQueryOldTableFileds("stu_id,content,type");
         checkTableInfo.setQueryOldTableWhereCondition("1=1");
         checkTableInfo.setOldTableRelationField("id");
-        checkPositionService.checkData(checkTableInfo);
+        checkPositionService.checkData2(checkTableInfo);
 
     }
 }

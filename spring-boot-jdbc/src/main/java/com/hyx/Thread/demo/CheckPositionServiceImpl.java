@@ -113,7 +113,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
             SqlSession session = getSqlSession();
             Connection con = session.getConnection();
             if(!con.isClosed()){
-                System.out.println("Succeeded connecting to the Database!");
+//                System.out.println("Succeeded connecting to the Database!");
             }
             PreparedStatement psCount = con.prepareStatement(sqlCount);
             PreparedStatement psContent = con.prepareStatement(sqlContent);
@@ -147,7 +147,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
     }
 
     @Override
-    public void check2(CheckTableInfo checkTableInfo){
+    public void checkData2(CheckTableInfo checkTableInfo){
 
 
         String oldTable = checkTableInfo.getOldTable();
@@ -157,7 +157,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 
         String newTable = checkTableInfo.getNewTable();
         String newTableRelationField = checkTableInfo.getNewTableRelationField();
-        String newFileds = checkTableInfo.getNewTable();
+        String newFileds = checkTableInfo.getQueryNewTableFileds();
 
         TableDto oldTableDto = new TableDto();
 
@@ -170,7 +170,6 @@ public class CheckPositionServiceImpl implements CheckPositionService {
         String whereSql = "";
         Integer pageSize = 10000;
         Integer totalDataRows = getTableRows(oldTable, whereCondition);
-        Integer pageTotal = totalDataRows/pageSize + 1;
         if (!whereCondition.trim().equals("") && whereCondition != null) {
             whereSql = String.format(" where %s", whereCondition);
         }
@@ -225,30 +224,34 @@ public class CheckPositionServiceImpl implements CheckPositionService {
         }
 
         List<Runnable> MydataThreadList = new ArrayList<>();
-        int dataRowPerThread = totalDataRows/10;   // 10个线程数,1个线程的数量
-        int pageCount = dataRowPerThread/pageSize+1;   // 每个线程需要的页数
-        if (pageCount == 1) {
-            MyDataThread myDataThread1 = new MyDataThread(oldTable, oldTablesqlString, 1, 1, pageSize);
-            MydataThreadList.add(myDataThread1);
-        } else {
-            logger.error("dataRowPerThread={}", dataRowPerThread);
+        int threadNum = 10;
+        int pageCount = (int) Math.ceil(totalDataRows.doubleValue()/pageSize.doubleValue());   // 需要的总页数
+        int pageCountPerThread = pageCount/threadNum;   // 每个线程的页数为
 
+        logger.error("查询的数据量total={}", totalDataRows);
+        if (totalDataRows <= pageSize) {
+            logger.error("仅仅用1个线程即可");
+        } else {
+            logger.error("totalDataRows={},pageCount={},pageCountPerThread={}", totalDataRows, pageCount, pageCountPerThread);
 
             int pageNoStart = 1;
-            int pageNoEnd = pageCount;
-            for (int i = 1; i <= 10; i++) {
+            int pageNoEnd = pageCountPerThread;
+            for (int i = 1; i <= threadNum; i++) {
                 if (i > pageCount){
                     break;
                 }
+                if (i == threadNum) {    // 最后一个线程将多余数据进行查询
+                    pageNoEnd = pageCount;
+                }
                 String threadName = "线程" + i;
-                logger.error("线程[{}]->pageNoStart={},pageNoStart={},该线程需要使用页数={}", threadName, pageNoStart, pageNoStart, pageCount);
+                logger.error("线程[{}]->pageNoStart={},pageNoEnd={},该线程需要使用页数={}", threadName, pageNoStart, pageNoEnd, pageCount);
                 MydataThreadList.add(new MyDataThread("线程" + i, oldTablesqlString, pageNoStart, pageNoEnd, pageSize));
-                pageNoStart = (i - 1) * pageCount + 1;
-                pageNoEnd = i * pageCount + 1;
-
-
+                pageNoStart += pageCountPerThread;
+                pageNoEnd = pageNoStart + pageCountPerThread-1;
             }
         }
+
+        threadPoolUtil.executeTasks(MydataThreadList);
 
     }
 
@@ -266,7 +269,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 //            whereSql = String.format(" where %s", whereCondition);
 //        }
 //        String sqlString = String.format("select %s from %s%s", tableFields, tableName, whereSql);
-        String sqlString = querySql + "limit ?, ?";
+        String sqlString = querySql + " limit ?,?";
         ResultSet rsContent = null;
         List<String> tableColumnValues = new ArrayList<>();
         List<String> tableColumnValuesAll = new ArrayList<>();
@@ -275,7 +278,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
                 SqlSession session = getSqlSession();
                 Connection con = session.getConnection();
                 if(!con.isClosed()){
-                    System.out.println("Succeeded connecting to the Database!");
+//                    System.out.println("Succeeded connecting to the Database!");
                 }
 
                 PreparedStatement psContent = con.prepareStatement(sqlString);
@@ -315,7 +318,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
             SqlSession session = getSqlSession();
             Connection con = session.getConnection();
             if(!con.isClosed()){
-                System.out.println("Succeeded connecting to the Database!");
+//                System.out.println("Succeeded connecting to the Database!");
             }
 
             PreparedStatement psConut = con.prepareStatement(sqlStr);

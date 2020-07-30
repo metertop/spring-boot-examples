@@ -17,5 +17,5 @@ public interface CheckPositionService {
 
     void checkData(CheckTableInfo checkTableInfo) throws Exception;
 
-    void check2(CheckTableInfo checkTableInfo);
+    void checkData2(CheckTableInfo checkTableInfo);
 }

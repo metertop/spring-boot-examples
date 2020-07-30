@@ -13,11 +13,15 @@ public class Test1 {
     private  Logger logger = LoggerFactory.getLogger(getClass());
     @Test
     public void test1() {
-        int totalDataRows = 110000;
-        int pageSize = 10000;
+        Integer totalDataRows = 1200010;
+        Integer pageSize = 10000;
+        int threadNum = 10;
 
-        int pageCount = (int) Math.ceil(totalDataRows/pageSize);   // 需要的总页数
-        int pageCountPerThread = (int) Math.ceil(pageCount/10);   // 每个线程的页数为
+
+
+        int pageCount = (int) Math.ceil(totalDataRows.doubleValue()/pageSize.doubleValue());   // 需要的总页数
+
+        int pageCountPerThread = pageCount/threadNum;   // 每个线程的页数为
 
         logger.error("查询的数据量total={}", totalDataRows);
         if (totalDataRows <= pageSize) {
@@ -28,9 +32,12 @@ public class Test1 {
 
             int pageNoStart = 1;
             int pageNoEnd = pageCountPerThread;
-            for (int i = 1; i <= 10; i++) {
+            for (int i = 1; i <= threadNum; i++) {
                 if (i > pageCount){
                     break;
+                }
+                if (i==threadNum) {    // 最后一个线程将多余数据进行查询
+                    pageNoEnd = pageCount;
                 }
                 String threadName = "线程" + i;
                 logger.error("线程[{}]->pageNoStart={},pageNoEnd={},该线程需要使用页数={}", threadName, pageNoStart, pageNoEnd, pageCount);
