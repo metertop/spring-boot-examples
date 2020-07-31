@@ -77,14 +77,14 @@ public class ThreadPoolUtil {
                 logger.error("--任务用时:{}秒", useSecond);
                 break;
             }
-//            try {
-//
-//                logger.info("waiting and sleep 1000 ...");
-//                TimeUnit.MILLISECONDS.sleep(1000);
-//            } catch (Exception e) {
-//                System.out.println(e.toString());
-//                break;
-//            }
+            try {
+
+                logger.info("waiting and sleep 1000 ...");
+                TimeUnit.MILLISECONDS.sleep(1000);
+            } catch (Exception e) {
+                System.out.println(e.toString());
+                break;
+            }
         }
 
     }

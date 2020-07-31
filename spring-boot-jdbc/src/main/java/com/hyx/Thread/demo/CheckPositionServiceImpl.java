@@ -224,7 +224,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
         }
 
         List<Runnable> MydataThreadList = new ArrayList<>();
-        int threadNum = 10;
+        int threadNum = 20;
         int pageCount = (int) Math.ceil(totalDataRows.doubleValue()/pageSize.doubleValue());   // 需要的总页数
         int pageCountPerThread = pageCount/threadNum;   // 每个线程的页数为
 
@@ -284,6 +284,9 @@ public class CheckPositionServiceImpl implements CheckPositionService {
                 PreparedStatement psContent = con.prepareStatement(sqlString);
                 psContent.setInt(1, (pageNo-1)*pageSize);
                 psContent.setInt(2, pageSize);
+                psContent.setFetchSize(Integer.MIN_VALUE);
+                psContent.setFetchDirection(ResultSet.FETCH_REVERSE);
+
                 rsContent = psContent.executeQuery();
 
                 while (rsContent.next()) {
@@ -351,6 +354,8 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 //                System.out.println("Succeeded connecting to the Database!");
             }
             ps = con.prepareStatement(sql);
+            ps.setFetchSize(Integer.MIN_VALUE);   // 流读取
+            ps.setFetchDirection(ResultSet.FETCH_REVERSE);
             rs = ps.executeQuery();
             while(rs.next()){
                 String values = getResultByType(rs);
