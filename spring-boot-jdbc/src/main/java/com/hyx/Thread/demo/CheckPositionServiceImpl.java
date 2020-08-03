@@ -50,7 +50,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
     //驱动程序名
     String driver = "com.mysql.jdbc.Driver";
     //URL指向要访问的数据库名mydata
-    String url = "jdbc:mysql://172.16.70.20:3306/point?useUnicode=true&amp;characterEncoding=utf8&amp;connectTimeout=5000&amp;socketTimeout=60000&amp;autoReconnect=true&amp;failOverReadOnly=false&amp;allowMultiQueries=true";
+    String url = "jdbc:mysql://172.16.70.20:3306/point?useUnicode=true&amp;characterEncoding=utf8&amp;connectTimeout=5000&amp;socketTimeout=6000000&amp;autoReconnect=true&amp;failOverReadOnly=false&amp;allowMultiQueries=true";
     //MySQL配置时的用户名
     String user = "rd_user";
     //MySQL配置时的密码
@@ -171,9 +171,15 @@ public class CheckPositionServiceImpl implements CheckPositionService {
         Integer pageSize = 10000;
         Integer totalDataRows = getTableRows(oldTable, whereCondition);
         if (!whereCondition.trim().equals("") && whereCondition != null) {
-            whereSql = String.format(" where %s", whereCondition);
+            whereSql = String.format("where %s", whereCondition);
         }
-        String oldTablesqlString = String.format("select %s from %s%s", oldFileds, oldTable, whereSql);
+//        String oldTablesqlString = String.format("select %s from % %s", oldFileds, oldTable, whereSql);
+
+        String oldRefFields = StringUtil.getRefTableFields(oldFileds);
+
+        String oldTablesqlString = String.format("select %s from %s as a inner join (select id from %s %s limit ?,?) as b on a.id=b.id"
+                                    ,oldRefFields, oldTable, oldTable, whereSql);
+
 
 
         class MyDataThread implements Runnable{
@@ -224,7 +230,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
         }
 
         List<Runnable> MydataThreadList = new ArrayList<>();
-        int threadNum = 20;
+        int threadNum = 10;
         int pageCount = (int) Math.ceil(totalDataRows.doubleValue()/pageSize.doubleValue());   // 需要的总页数
         int pageCountPerThread = pageCount/threadNum;   // 每个线程的页数为
 
@@ -269,7 +275,9 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 //            whereSql = String.format(" where %s", whereCondition);
 //        }
 //        String sqlString = String.format("select %s from %s%s", tableFields, tableName, whereSql);
-        String sqlString = querySql + " limit ?,?";
+//        String sqlString = querySql + " limit ?,?";
+        String sqlString = querySql;
+//        logger.error("---旧表查询sql={}", sqlString);
         ResultSet rsContent = null;
         List<String> tableColumnValues = new ArrayList<>();
         List<String> tableColumnValuesAll = new ArrayList<>();
@@ -284,8 +292,8 @@ public class CheckPositionServiceImpl implements CheckPositionService {
                 PreparedStatement psContent = con.prepareStatement(sqlString);
                 psContent.setInt(1, (pageNo-1)*pageSize);
                 psContent.setInt(2, pageSize);
-                psContent.setFetchSize(Integer.MIN_VALUE);
-                psContent.setFetchDirection(ResultSet.FETCH_REVERSE);
+//                psContent.setFetchSize(Integer.MIN_VALUE);
+//                psContent.setFetchDirection(ResultSet.FETCH_REVERSE);
 
                 rsContent = psContent.executeQuery();
 
@@ -354,8 +362,8 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 //                System.out.println("Succeeded connecting to the Database!");
             }
             ps = con.prepareStatement(sql);
-            ps.setFetchSize(Integer.MIN_VALUE);   // 流读取
-            ps.setFetchDirection(ResultSet.FETCH_REVERSE);
+//            ps.setFetchSize(Integer.MIN_VALUE);   // 流读取
+//            ps.setFetchDirection(ResultSet.FETCH_REVERSE);
             rs = ps.executeQuery();
             while(rs.next()){
                 String values = getResultByType(rs);

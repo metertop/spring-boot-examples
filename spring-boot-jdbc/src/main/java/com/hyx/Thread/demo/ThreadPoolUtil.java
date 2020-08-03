@@ -15,6 +15,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupp
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -79,7 +80,7 @@ public class ThreadPoolUtil {
             }
             try {
 
-                logger.info("waiting and sleep 1000 ...");
+//                logger.info("waiting and sleep 1000 ...");
                 TimeUnit.MILLISECONDS.sleep(1000);
             } catch (Exception e) {
                 System.out.println(e.toString());

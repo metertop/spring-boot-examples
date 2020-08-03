@@ -31,7 +31,7 @@ public class CheckDataController {
         checkTableInfo.setQueryNewTableFileds("stu_id,count,sku_type");
         checkTableInfo.setQueryOldTableFileds("stu_id,content,type");
         checkTableInfo.setQueryOldTableWhereCondition("1=1");
-        checkTableInfo.setOldTableRelationField("id");
+        checkTableInfo.setOldTableRelationField("id");   // 两个表的关联字段，最好是旧表的主键
         checkPositionService.checkData2(checkTableInfo);
 
     }

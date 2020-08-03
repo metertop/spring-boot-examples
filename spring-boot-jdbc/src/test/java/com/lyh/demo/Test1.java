@@ -49,4 +49,40 @@ public class Test1 {
             }
         }
     }
+
+
+    @Test
+    public void test2() {
+        String str1 = "id,stu_id,content,type";
+        StringBuilder sb = new StringBuilder();
+        String[] strArr = str1.split(",");
+
+        for (String str: strArr) {
+            sb.append(",a." + str);
+        }
+
+        logger.info("sb=={}", sb.toString().substring(1));
+
+    }
+
+
+    @Test
+    public void test3() {
+        String str1 = "id,stu_id,content,type";
+        logger.info("sb-->{}", getRefTableFields(str1));
+    }
+
+
+    private String getRefTableFields(String tableFields) {
+        StringBuilder sb = new StringBuilder();
+        String[] strArr = tableFields.split(",");
+
+        for (String str: strArr) {
+            sb.append(",a." + str);
+        }
+
+        return sb.toString().substring(1);
+    }
+
+
 }
