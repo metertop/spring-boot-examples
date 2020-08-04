@@ -18,10 +18,7 @@ import org.springframework.stereotype.Service;
 
 import javax.websocket.Session;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -157,9 +154,9 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 
         String newTable = checkTableInfo.getNewTable();
         String newTableRelationField = checkTableInfo.getNewTableRelationField();
-        String newFileds = checkTableInfo.getQueryNewTableFileds();
+        String newFields = checkTableInfo.getQueryNewTableFileds();
 
-        TableDto oldTableDto = new TableDto();
+//        TableDto oldTableDto = new TableDto();
 
         String sqlCount = String.format("select count(1) as rowCount from %s where %s",  oldTable, whereCondition);
         String sqlContent = String.format("select %s from %s where %s", oldFileds, oldTable, whereCondition);
@@ -169,18 +166,16 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 
         String whereSql = "";
         Integer pageSize = 10000;
-        Integer totalDataRows = getTableRows(oldTable, whereCondition);
+        Integer totalDataRows = getTableRows(oldTable, whereCondition)/10;
         if (!whereCondition.trim().equals("") && whereCondition != null) {
             whereSql = String.format("where %s", whereCondition);
         }
-//        String oldTablesqlString = String.format("select %s from % %s", oldFileds, oldTable, whereSql);
+//        String oldTableSqlString = String.format("select %s from % %s", oldFileds, oldTable, whereSql);
 
         String oldRefFields = StringUtil.getRefTableFields(oldFileds);
 
-        String oldTablesqlString = String.format("select %s from %s as a inner join (select id from %s %s limit ?,?) as b on a.id=b.id"
+        String oldTableSqlString = String.format("select %s from %s as a inner join (select id from %s %s limit ?,?) as b on a.id=b.id"
                                     ,oldRefFields, oldTable, oldTable, whereSql);
-
-
 
         class MyDataThread implements Runnable{
             String threadName;
@@ -199,15 +194,14 @@ public class CheckPositionServiceImpl implements CheckPositionService {
             }
             @Override
             public void run() {
-                List<String> resultList = new ArrayList<>();
-                List<String> resultListAll = new ArrayList<>();
+                List<String> resultList;
+                List<String> resultListAll = new LinkedList<>();
                 for (int pageNo=pageNoStart; pageNo<= pageNoEnd; pageNo++) {
                     resultList = getTableResults(querySql, pageNo, pageSize);
                     resultListAll.addAll(resultList);
                 }
                 Integer dataTotal = resultListAll.size();
                 logger.error("线程-[{}]旧表数据量为{}--->当前时间戳是:{}", threadName, dataTotal, System.currentTimeMillis());
-
 
                 AtomicInteger passCount = new AtomicInteger(0);
                 AtomicInteger failCount = new AtomicInteger(0);
@@ -216,7 +210,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 
                 while(it.hasNext()) {
                     String oldTableValue = it.next();
-                    Boolean isPass = compareOldAndNewPass(newTable, newFileds, newTableRelationField, oldTable, oldFileds, oldTableValue);
+                    Boolean isPass = compareOldAndNewPass(newTable, newFields, newTableRelationField, oldTable, oldFileds, oldTableValue);
                     if (isPass) {
                         passCount.incrementAndGet();
                     }else {
@@ -229,10 +223,10 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 
         }
 
-        List<Runnable> MydataThreadList = new ArrayList<>();
+        List<Runnable> myDataThreadList = new ArrayList<>();
         int threadNum = 10;
         int pageCount = (int) Math.ceil(totalDataRows.doubleValue()/pageSize.doubleValue());   // 需要的总页数
-        int pageCountPerThread = pageCount/threadNum;   // 每个线程的页数为
+        int pageCountPerThread = pageCount/threadNum == 0 ? 1: pageCount/threadNum;   // 每个线程的页数为
 
         logger.error("查询的数据量total={}", totalDataRows);
         if (totalDataRows <= pageSize) {
@@ -251,13 +245,13 @@ public class CheckPositionServiceImpl implements CheckPositionService {
                 }
                 String threadName = "线程" + i;
                 logger.error("线程[{}]->pageNoStart={},pageNoEnd={},该线程需要使用页数={}", threadName, pageNoStart, pageNoEnd, pageCount);
-                MydataThreadList.add(new MyDataThread("线程" + i, oldTablesqlString, pageNoStart, pageNoEnd, pageSize));
+                myDataThreadList.add(new MyDataThread("线程" + i, oldTableSqlString, pageNoStart, pageNoEnd, pageSize));
                 pageNoStart += pageCountPerThread;
                 pageNoEnd = pageNoStart + pageCountPerThread-1;
             }
         }
 
-        threadPoolUtil.executeTasks(MydataThreadList);
+        threadPoolUtil.executeTasks(myDataThreadList);
 
     }
 
@@ -267,7 +261,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
      * @param pageSize 一次查询的数量
      */
 
-    private List<String> getTableResults(String querySql,Integer pageNo, Integer pageSize) {
+    private List<String> getTableResults(String querySql, Integer pageNo, Integer pageSize) {
         String whereSql = "";
 //        Integer totalDataRows = this.getTableRows(tableName, whereCondition);
 //        Integer pageTotal = totalDataRows/pageSize + 1;
@@ -279,8 +273,8 @@ public class CheckPositionServiceImpl implements CheckPositionService {
         String sqlString = querySql;
 //        logger.error("---旧表查询sql={}", sqlString);
         ResultSet rsContent = null;
-        List<String> tableColumnValues = new ArrayList<>();
-        List<String> tableColumnValuesAll = new ArrayList<>();
+        List<String> tableColumnValues = new LinkedList<>();
+        List<String> tableColumnValuesAll = new LinkedList<>();
             try {
 
                 SqlSession session = getSqlSession();
@@ -352,7 +346,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
     }
 
     private List<String> queryResultByColumn(String sql) {
-        List<String> resultList = new ArrayList<>();
+        List<String> resultList = new LinkedList<>();
         SqlSession session = getSqlSession();
         Connection con = session.getConnection();
         PreparedStatement ps = null;
@@ -381,6 +375,9 @@ public class CheckPositionServiceImpl implements CheckPositionService {
         resultList.add("查询无结果");
         return resultList;
     }
+
+
+
 
     private Boolean compareOldAndNewPass(String newTableName, String queryNewTableFields, String newTableRelationField, String oldTableName, String queyOldTableFileds, String oldTableValue) {
         Boolean isPass = false;
