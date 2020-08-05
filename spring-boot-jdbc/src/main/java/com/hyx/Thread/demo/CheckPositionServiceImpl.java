@@ -3,6 +3,7 @@ package com.hyx.Thread.demo;
 import com.alibaba.druid.pool.DruidDataSource;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
+import com.google.common.collect.Lists;
 import com.google.common.net.InternetDomainName;
 import org.apache.ibatis.mapping.Environment;
 import org.apache.ibatis.session.Configuration;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import javax.websocket.Session;
 import java.sql.*;
 import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -196,7 +198,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
             public void run() {
                 List<String> resultList;
                 List<String> resultListAll = new LinkedList<>();
-                for (int pageNo=pageNoStart; pageNo<= pageNoEnd; pageNo++) {
+                for (int pageNo = pageNoStart; pageNo <= pageNoEnd; pageNo++) {
                     resultList = getTableResults(querySql, pageNo, pageSize);
                     resultListAll.addAll(resultList);
                 }
@@ -255,6 +257,149 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 
     }
 
+    @Override
+    public void checkData3(CheckTableInfo checkTableInfo) {
+        int threadNum = 10;
+        String oldTable = checkTableInfo.getOldTable();
+        String oldRealtionField = checkTableInfo.getOldTableRelationField();
+        String oldFields = oldRealtionField + "," +checkTableInfo.getQueryOldTableFileds();    // id 在前
+        String whereCondition = checkTableInfo.getQueryOldTableWhereCondition();
+
+        String newTable = checkTableInfo.getNewTable();
+        String newTableRelationField = checkTableInfo.getNewTableRelationField();
+        String newFields = checkTableInfo.getQueryNewTableFileds();
+        String sqlCount = String.format("select count(1) as rowCount from %s where %s",  oldTable, whereCondition);
+
+
+        logger.error("sqlCount-->{}", sqlCount);
+
+        String whereSql = "";
+        Integer pageSize = 5000;
+        Integer totalDataRows = getTableRows(oldTable, whereCondition)/100;
+        logger.error("旧表[{}]数据量为{}--->当前时间戳是:{}", oldTable, totalDataRows, System.currentTimeMillis());
+
+        if (!whereCondition.trim().equals("") && whereCondition != null) {
+            whereSql = String.format("where %s and id>? order by id asc", whereCondition);
+        }
+
+        String oldTableSqlString = String.format("select %s from %s %s limit ?,? "
+                ,oldFields, oldTable, whereSql);
+        List<String> oldTableResults;
+        List<String> oldTableResultAll = new LinkedList<>();
+        Long startId = 0L;
+        while (true) {    // 根据id 一页取出 5000条
+            oldTableResults = getTableResultsById(oldTableSqlString, startId, 1, pageSize);
+            startId = Long.parseLong(oldTableResults.get(oldTableResults.size()-1).substring(0,1));   // 取出前面的id
+            oldTableResultAll.addAll(oldTableResults);
+            if (startId >= totalDataRows) {
+                break;
+            }
+        }
+
+        Integer dataTotal = oldTableResultAll.size();
+        logger.error("旧表数据量为{}--->当前时间戳是:{}", dataTotal, System.currentTimeMillis());
+
+
+        List<Runnable> myDataThreadList = new ArrayList<>();
+        List<List<String>> oldTableResultsPartition = Lists.partition(oldTableResultAll, threadNum);
+
+        for (int i=0; i<threadNum; i++) {
+
+            List<String> partList = oldTableResultsPartition.get(i);
+            myDataThreadList.add(new CompareDataThread("线程-" + (i+1), oldTableSqlString,
+                    partList, newTable, newFields, newTableRelationField, oldTable, oldFields));
+        }
+
+
+        threadPoolUtil.executeTasks(myDataThreadList);
+
+    }
+
+    class CompareDataThread implements Runnable{
+
+
+        AtomicInteger passCount = new AtomicInteger(0);
+        AtomicInteger failCount = new AtomicInteger(0);
+
+        String threadName;
+        String querySql;
+        List<String> oldTableResult;
+        String newTable;
+        String newFields;
+        String newTableRelationField;
+        String oldTable;
+        String oldFields;
+
+
+        public CompareDataThread(String threadName, String querySql, List<String> oldTableResult, String newTable, String newFields,
+                                 String newTableRelationField, String oldTable,  String oldFields) {
+            this.threadName = threadName;
+            this.querySql = querySql;
+            this.oldTableResult = oldTableResult;
+        }
+
+        @Override
+        public void run() {
+            Iterator<String> it = oldTableResult.iterator();
+            while (it.hasNext()) {
+                String oldTableValue = it.next();
+                Boolean isPass = compareOldAndNewPass(newTable, newFields, newTableRelationField, oldTable, oldFields, oldTableValue);
+                if (isPass) {
+                    passCount.incrementAndGet();
+                }else {
+                    failCount.incrementAndGet();
+                }
+            }
+            logger.error("线程-[{}]数据一致数量是：{}--数据不一致数量是：{}--->当前时间戳是:{}", threadName, passCount.get(), failCount.get(), System.currentTimeMillis());
+
+        }
+    }
+
+
+    private List<String> getTableResultsById(String querySql, Long startId, Integer pageNo, Integer pageSize) {
+        String sqlString = querySql;
+//        logger.error("---旧表查询sql={}", sqlString);
+        ResultSet rsContent = null;
+        List<String> tableColumnValues = new LinkedList<>();
+        List<String> tableColumnValuesAll = new LinkedList<>();
+        try {
+
+            SqlSession session = getSqlSession();
+            Connection con = session.getConnection();
+            if(!con.isClosed()){
+//                    System.out.println("Succeeded connecting to the Database!");
+            }
+
+            PreparedStatement psContent = con.prepareStatement(sqlString);
+
+            psContent.setLong(1, startId);
+            psContent.setInt(2, (pageNo-1)*pageSize);
+            psContent.setInt(3, pageSize);
+//                psContent.setFetchSize(Integer.MIN_VALUE);
+//                psContent.setFetchDirection(ResultSet.FETCH_REVERSE);
+
+            rsContent = psContent.executeQuery();
+
+            while (rsContent.next()) {
+                tableColumnValues.add(getResultByType(rsContent));
+            }
+            tableColumnValuesAll.addAll(tableColumnValues);
+
+            rsContent.close();
+            con.close();
+            session.close();
+            tableColumnValues = null;
+            rsContent = null;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+//        logger.error("----tableColumnValuesAll={}", tableColumnValuesAll);
+        return tableColumnValuesAll;
+
+    }
+
+
     /**
      * @param querySql 查询sql
      * @param pageNo 查询的页数
@@ -297,8 +442,6 @@ public class CheckPositionServiceImpl implements CheckPositionService {
                 tableColumnValuesAll.addAll(tableColumnValues);
 
                 rsContent.close();
-                rsContent.close();
-
                 con.close();
                 session.close();
 

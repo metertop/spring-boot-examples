@@ -18,4 +18,6 @@ public interface CheckPositionService {
     void checkData(CheckTableInfo checkTableInfo) throws Exception;
 
     void checkData2(CheckTableInfo checkTableInfo);
+
+    void checkData3(CheckTableInfo checkTableInfo);
 }
