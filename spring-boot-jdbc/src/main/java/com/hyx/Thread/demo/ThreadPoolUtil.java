@@ -1,4 +1,5 @@
 package com.hyx.Thread.demo;
+import com.alibaba.fastjson.JSON;
 import org.apache.http.client.utils.DateUtils;
 import org.apache.http.impl.client.FutureRequestExecutionMetrics;
 import org.slf4j.Logger;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -26,12 +28,15 @@ import java.util.concurrent.TimeUnit;
  * @Date: 2020/7/24 12:15
  */
 
-@Component
+@Component("threadPoolUtil")
 public class ThreadPoolUtil {
     private static final Logger logger = LoggerFactory.getLogger(ThreadPoolUtil.class);
 
     @Autowired
     private ThreadPoolTaskExecutor threadPoolTaskExecutor;
+//
+    @Autowired
+    private ThreadPoolTaskExecutor compareThreadPoolTaskExecutor;
 
     public void executeTask(Runnable task) {
         threadPoolTaskExecutor.submit(task);
@@ -59,16 +64,37 @@ public class ThreadPoolUtil {
     public void executeTasks(List<Runnable> tasks) {
         long start = System.currentTimeMillis();
         logger.error("---任务开始：当前时间:{}" , DateUtil.getDateToString(start));
+        logger.error("----->task={}", JSON.toJSONString(tasks));
         List<Future<?>> result = new ArrayList<>();
         for(Runnable task: tasks) {
             Future<?> taskResult = threadPoolTaskExecutor.submit(task);
             result.add(taskResult);
         }
 
+        validTaskEnd(result, start);
+
+    }
+
+
+    public void executeCompareTask(List<Runnable> tasks) {
+        long start = System.currentTimeMillis();
+        logger.error("---任务开始：当前时间:{}" , DateUtil.getDateToString(start));
+        List<Future<?>> result = new ArrayList<>();
+        for(Runnable task: tasks) {
+//            logger.error("----->task={}", JSON.toJSONString(task));
+            Future<?> taskResult = compareThreadPoolTaskExecutor.submit(task);
+            result.add(taskResult);
+        }
+        validTaskEnd(result, start);
+
+    }
+
+
+    private void validTaskEnd(List<Future<?>> result, long start) {
         while (true) {
             boolean isAllDone = true;
             for (Future<?> taskResult : result) {
-                isAllDone &= ( taskResult.isDone() || taskResult.isCancelled() );
+//                logger.error("task---->{}", JSON.toJSONString(taskResult));
             }
             if (isAllDone) {
                 // 任务都执行完毕，跳出循环
@@ -87,7 +113,6 @@ public class ThreadPoolUtil {
                 break;
             }
         }
-
     }
 
 
@@ -131,5 +156,23 @@ public class ThreadPoolUtil {
             pool.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
             return pool;
         }
+
+
+//        @Bean(name="compareThreadPoolTaskExecutor")
+//        public ThreadPoolTaskExecutor compareThreadPoolTaskExecutor(){
+//            ThreadPoolTaskExecutor pool = new ThreadPoolTaskExecutor();
+//            pool.setKeepAliveSeconds(keepAliveSeconds);
+//            // 核心线程池数
+//            pool.setCorePoolSize(corePoolSize);
+//            // 最大线程
+//            pool.setMaxPoolSize(maxPoolSize);
+//            // 队列容量
+//            pool.setQueueCapacity(queueCapacity);
+//            // 队列满，线程被拒绝执行策略
+//            pool.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
+//            return pool;
+//        }
+
+
     }
 }
