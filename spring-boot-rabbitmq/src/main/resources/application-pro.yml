@@ -1,0 +1,90 @@
+spring:
+    datasource:
+        type: com.alibaba.druid.pool.DruidDataSource
+        driverClassName: com.mysql.jdbc.Driver
+        druid:
+            first:
+                url: jdbc:mysql://172.16.70.20:3307/api_test_platform_renren_fast?allowMultiQueries=true&useUnicode=true&characterEncoding=UTF-8
+                username: rd_user
+                password: NTHXDF7czYwi
+            second:
+                url: jdbc:mysql://172.16.70.20:3307/api_test_platform_renren_fast?allowMultiQueries=true&useUnicode=true&characterEncoding=UTF-8
+                username: rd_user
+                password: NTHXDF7czYwi
+
+            api-test-master:
+                url: jdbc:mysql://172.16.70.20:3307/api_test_platform?allowMultiQueries=true&useUnicode=true&characterEncoding=UTF-8
+                username: rd_user
+                password: NTHXDF7czYwi
+
+            api-test-slave:
+                url: jdbc:mysql://172.16.70.20:3307/api_test_platform?allowMultiQueries=true&useUnicode=true&characterEncoding=UTF-8
+                username: rd_user
+                password: NTHXDF7czYwi
+
+            initial-size: 10
+            max-active: 100
+            min-idle: 10
+            max-wait: 60000
+            pool-prepared-statements: true
+            max-pool-prepared-statement-per-connection-size: 20
+            time-between-eviction-runs-millis: 60000
+            min-evictable-idle-time-millis: 300000
+            validation-query: SELECT 1 FROM DUAL
+            test-while-idle: true
+            test-on-borrow: true
+            test-on-return: false
+            stat-view-servlet:
+                enabled: true
+                url-pattern: /druid/*
+                #login-username: admin
+                #login-password: admin
+            filter:
+                stat:
+                    log-slow-sql: true
+                    slow-sql-millis: 1000
+                    merge-sql: true
+                wall:
+                    config:
+                        multi-statement-allow: true
+    redis:
+        open: true  # 是否开启redis缓存  true开启   false关闭
+        database: 0
+        host: 172.16.70.20
+        port: 6381
+        password:       # 密码（默认为空）
+        timeout: 6000  # 连接超时时长（毫秒）
+        pool:
+            max-active: 1000  # 连接池最大连接数（使用负值表示没有限制）
+            max-wait: -1      # 连接池最大阻塞等待时间（使用负值表示没有限制）
+            max-idle: 10      # 连接池中的最大空闲连接
+            min-idle: 5       # 连接池中的最小空闲连接
+
+apiTest:
+    mockImageHome: /home/ftpFiles/mock_img
+#    mockImageHome: /Users/apple/mock_img
+    # mock监听端口，都使用该端口，该端口不能和服务器其他端口冲突，否则报错
+    # 如果该代码部署的服务器占用了80端扣，例如nginx，则需要配置nginx虚拟主机,这样mock出来的接口用8686和80都能访问 nginx.conf
+    # 例如:# mockserver 服务器
+    #     upstream mock8686 {
+    #        server 172.16.16.105:8686;    #8686则是mock真实的使用端口
+    #     }
+
+    #        location / {
+    #            proxy_pass              http://mock8686;
+    #            proxy_buffer_size 64k;
+    #            proxy_buffers 4 64k;
+    #            proxy_redirect    off;
+    #            proxy_set_header  Host $host;
+    #            proxy_set_header  X-Real-IP  $remote_addr;
+    #            proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
+    #        }
+    mockPort: 8686
+    mockLogLevel: INFO
+    httpClient:
+        maxTotalPool: 200         # 连接池最大连接数
+        maxConPerRoute: 50        # 每个主机的最多并发
+        socketTimeout: 5000       # 等待数据超时时间5秒钟 根据业务调整 /指客户端从服务器读取数据的timeout，超出后会抛出SocketTimeOutException
+        connectionRequestTimeout: 3000     # 从连接池获取连接的timeout
+        connectTimeout: 1000      # 指客户端和服务器建立连接的timeout
+        responseTimeout: 3000    # 返回超时

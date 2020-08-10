@@ -17,10 +17,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.websocket.Session;
+
 import java.sql.*;
 import java.util.*;
-import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -31,10 +31,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Service("CheckPositionService")
 public class CheckPositionServiceImpl implements CheckPositionService {
 
-    Logger  logger = LoggerFactory.getLogger(CheckPositionServiceImpl.class);
+    private static Logger logger = LoggerFactory.getLogger(CheckPositionServiceImpl.class);
 
     @Autowired
     private ThreadPoolUtil threadPoolUtil;
+
 
     private static DruidDataSource dataSourceMDB = null;
     private static SqlSessionFactory sqlSessionFactory = null;
@@ -42,7 +43,9 @@ public class CheckPositionServiceImpl implements CheckPositionService {
     AtomicInteger passNum = new AtomicInteger(0);
     AtomicInteger failNum = new AtomicInteger(0);
     Integer oldTableCounts = 0;
+    int threadNum = 10;
 
+    List<String> oldTableValuesAll = new LinkedList<>();
 
     //声明Connection对象
     Connection con;
@@ -168,7 +171,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 
         String whereSql = "";
         Integer pageSize = 10000;
-        Integer totalDataRows = getTableRows(oldTable, whereCondition)/10;
+        Integer totalDataRows = getTableRows(oldTable, whereCondition)/100;
         if (!whereCondition.trim().equals("") && whereCondition != null) {
             whereSql = String.format("where %s", whereCondition);
         }
@@ -268,6 +271,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
         String newTable = checkTableInfo.getNewTable();
         String newTableRelationField = checkTableInfo.getNewTableRelationField();
         String newFields = checkTableInfo.getQueryNewTableFileds();
+
         String sqlCount = String.format("select count(1) as rowCount from %s where %s",  oldTable, whereCondition);
 
 
@@ -366,14 +370,14 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 
             SqlSession session = getSqlSession();
             Connection con = session.getConnection();
-            if(!con.isClosed()){
+            if (!con.isClosed()) {
 //                    System.out.println("Succeeded connecting to the Database!");
             }
 
             PreparedStatement psContent = con.prepareStatement(sqlString);
 
             psContent.setLong(1, startId);
-            psContent.setInt(2, (pageNo-1)*pageSize);
+            psContent.setInt(2, (pageNo - 1) * pageSize);
             psContent.setInt(3, pageSize);
 //                psContent.setFetchSize(Integer.MIN_VALUE);
 //                psContent.setFetchDirection(ResultSet.FETCH_REVERSE);
@@ -396,6 +400,188 @@ public class CheckPositionServiceImpl implements CheckPositionService {
         }
 //        logger.error("----tableColumnValuesAll={}", tableColumnValuesAll);
         return tableColumnValuesAll;
+    }
+
+    @Override
+    public void checkData4(CheckTableInfo checkTableInfo) {
+        String oldTable = checkTableInfo.getOldTable();
+        String oldRealtionField = checkTableInfo.getOldTableRelationField();
+        String oldFields = oldRealtionField + "," +checkTableInfo.getQueryOldTableFileds();    // id 在前
+        String whereCondition = checkTableInfo.getQueryOldTableWhereCondition();
+
+        String newTable = checkTableInfo.getNewTable();
+        String newTableRelationField = checkTableInfo.getNewTableRelationField();
+        String newFields = newTableRelationField + "," + checkTableInfo.getQueryNewTableFileds();
+
+
+        String sqlCount = String.format("select count(1) as rowCount from %s where %s",  oldTable, whereCondition);
+        String sqlContent = String.format("select %s from %s where %s", oldFields, oldTable, whereCondition);
+
+        logger.error("sqlCount-->{}", sqlCount);
+        logger.error("sqlContent-->{}", sqlContent);
+
+        String whereSql = "";
+        Integer pageSize = 10000;
+        Integer totalDataRows = getTableRows(oldTable, whereCondition)/100;
+        if (!whereCondition.trim().equals("") && whereCondition != null) {
+            whereSql = String.format("where %s", whereCondition);
+        }
+//        String oldTableSqlString = String.format("select %s from % %s", oldFileds, oldTable, whereSql);
+
+        String oldRefFields = StringUtil.getRefTableFields(oldFields);
+
+        String oldTableSqlString = String.format("select %s from %s as a inner join (select id from %s %s limit ?,?) as b on a.id=b.id"
+                ,oldRefFields, oldTable, oldTable, whereSql);
+
+        List<Runnable> getOldTableThreadList = new ArrayList<>();
+        List<Runnable> compareTablesThreadList = new ArrayList<>();
+
+
+        class GetOldValueThread implements Runnable{
+            String threadName;
+            String querySql;
+            Integer pageSize;
+            Integer pageNoStart;
+            Integer pageNoEnd;
+
+            public GetOldValueThread(String threadName, String querySql, Integer pageNoStart, Integer pageNoEnd,
+                                     Integer pageSize) {
+                this.threadName = threadName;
+                this.pageNoStart = pageNoStart;
+                this.pageNoEnd = pageNoEnd;
+                this.pageSize = pageSize;
+                this.querySql = querySql;
+            }
+            @Override
+            public void run() {
+                synchronized (oldTableValuesAll) {
+                    List<String> resultList;
+                    List<String> resultListAll = new LinkedList<>();
+                    for (int pageNo=pageNoStart; pageNo <= pageNoEnd; pageNo++) {
+                        resultList = getTableResults(querySql, pageNo, pageSize);
+                        oldTableValuesAll.addAll(resultList);
+                        resultListAll.addAll(resultList);  // 仅仅是为了得到数量
+                        resultListAll.notifyAll();
+                    }
+                    Integer dataTotal = resultListAll.size();
+                    resultListAll = null; //gc
+                    logger.error("线程-[{}]旧表数据量为{}--->当前时间戳是:{}", threadName, dataTotal, System.currentTimeMillis());
+                }
+
+
+
+            }
+
+        }
+
+        class OldTableVsNewTableThread implements Runnable{
+            String threadName;
+            //        String querySql;
+            String newTable;
+            String newFields;
+            String newTableRelationField;
+            String oldTable;
+            String oldFields;
+
+
+            public OldTableVsNewTableThread(String threadName,
+//                                        String querySql,
+                                            String newTable,
+                                            String newFields,
+                                            String newTableRelationField,
+                                            String oldTable,
+                                            String oldFields) {
+                this.threadName = threadName;
+//            this.querySql = querySql;
+                this.newTable = newTable;
+                this.newFields = newFields;
+                this.newTableRelationField = newTableRelationField;
+                this.oldTable = oldTable;
+                this.oldFields = oldFields;
+            }
+
+
+            @Override
+            public void run() {
+                synchronized (oldTableValuesAll) {
+                    try {
+                        TimeUnit.MILLISECONDS.sleep(1000);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+
+                    AtomicInteger passCount = new AtomicInteger(0);
+                    AtomicInteger failCount = new AtomicInteger(0);
+
+                    logger.error("-----oldTableValuesAll={}", oldTableValuesAll.size());
+
+
+
+                    Iterator<String> it = oldTableValuesAll.iterator();
+
+                    while(it.hasNext()) {
+                        String oldTableValue = it.next();
+                        it.remove();
+//                    logger.error("---->oldTableValue={}", oldTableValue);
+                        Boolean isPass = compareOldAndNewPass(newTable, newFields, newTableRelationField, oldTable, oldFields, oldTableValue);
+                        if (isPass) {
+                            passCount.incrementAndGet();
+                        }else {
+                            failCount.incrementAndGet();
+                        }
+
+                    }
+
+                    logger.error("线程-[{}]数据一致数量是：{}--数据不一致数量是：{}--->当前时间戳是:{}", threadName, passCount.get(), failCount.get(), System.currentTimeMillis());
+
+                }
+
+            }
+        }
+
+        int pageCount = (int) Math.ceil(totalDataRows.doubleValue()/pageSize.doubleValue());   // 需要的总页数
+        int pageCountPerThread = pageCount/threadNum == 0 ? 1: pageCount/threadNum;   // 每个线程的页数为
+
+        logger.error("查询的数据量total={}", totalDataRows);
+        if (totalDataRows <= pageSize) {
+            logger.error("仅仅用1个线程即可");
+        } else {
+            logger.error("totalDataRows={},pageCount={},pageCountPerThread={}", totalDataRows, pageCount, pageCountPerThread);
+
+            int pageNoStart = 1;
+            int pageNoEnd = pageCountPerThread;
+            for (int i = 1; i <= threadNum; i++) {
+                if (i > pageCount){
+                    break;
+                }
+                if (i == threadNum) {    // 最后一个线程将多余数据进行查询
+                    pageNoEnd = pageCount;
+                }
+                String threadName = "线程" + i;
+                getOldTableThreadList.add(new GetOldValueThread("线程" + i, oldTableSqlString, pageNoStart, pageNoEnd, pageSize));
+                logger.error("线程[{}]->pageNoStart={},pageNoEnd={},该线程需要使用页数={}", threadName, pageNoStart, pageNoEnd, pageCount);
+                pageNoStart += pageCountPerThread;
+                pageNoEnd = pageNoStart + pageCountPerThread-1;
+
+            }
+        }
+
+        threadPoolUtil.executeTasks(getOldTableThreadList);
+        logger.error("1---oldTableValuesAll.size={}", oldTableValuesAll.size());
+
+
+        for (int j=1; j<=threadNum; j++){
+
+            compareTablesThreadList.add(new OldTableVsNewTableThread("对比线程：" + j,  newTable, newFields, newTableRelationField, oldTable, oldFields));
+
+        }
+
+
+
+        logger.error("2---oldTableValuesAll.size={}", oldTableValuesAll.size());
+
+        threadPoolUtil.executeCompareTask(compareTablesThreadList);
+
 
     }
 
@@ -441,6 +627,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
                 }
                 tableColumnValuesAll.addAll(tableColumnValues);
 
+
                 rsContent.close();
                 con.close();
                 session.close();
@@ -448,7 +635,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        return tableColumnValuesAll;
+        return tableColumnValues;
 
     }
 
@@ -520,16 +707,14 @@ public class CheckPositionServiceImpl implements CheckPositionService {
     }
 
 
-
-
     private Boolean compareOldAndNewPass(String newTableName, String queryNewTableFields, String newTableRelationField, String oldTableName, String queyOldTableFileds, String oldTableValue) {
         Boolean isPass = false;
 //        logger.error("----->{}", oldTableValue);
-        String stringWhere = oldTableValue.substring(0,1);
+        String stringWhere = oldTableValue.substring(0, oldTableValue.indexOf(","));    // 第1个值为老表主键id
         String newQueryString = String.format("select %s from %s where %s=%s", queryNewTableFields, newTableName, newTableRelationField, stringWhere);
 //        logger.error("---查询语句是：{}", newQueryString);
         List<String> newTableResult = this.queryResultByColumn(newQueryString);
-    //  logger.error("---查询结果是：{}", JSON.toJSONString(newTableResult));
+//      logger.error("---查询结果是：{}", JSON.toJSONString(newTableResult));
         if (newTableResult.size()>0 && newTableResult.get(0).equals(oldTableValue)) {  // 现在查询只能1v1
 //            logger.info("新旧表数据一致");
 //            this.passNum.incrementAndGet();
@@ -538,8 +723,8 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 //            logger.info("新旧表数据不一致");
 //            this.failNum.incrementAndGet();
             isPass = false;
+            logger.info("新表{}[{}]结果：{}-->旧表{}[{}]结果：{}", newTableName, queryNewTableFields, JSON.toJSONString(newTableResult), oldTableName, queyOldTableFileds, oldTableValue);
         }
-//        logger.info("新表{}[{}]结果：{}-->旧表{}[{}]结果：{}", newTableName, queryNewTableFields, JSON.toJSONString(newTableResult), oldTableName, queyOldTableFileds, oldTableValue);
         return isPass;
     }
 

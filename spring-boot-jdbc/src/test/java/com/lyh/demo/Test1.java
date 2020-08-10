@@ -85,4 +85,12 @@ public class Test1 {
     }
 
 
+    @Test
+    public void test4() {
+        String str1 = "2455,2110,0.00,point";
+        String str2 = str1.substring(0, str1.indexOf(","));
+        logger.info("----->str2={}", str2);
+    }
+
+
 }
