@@ -42,6 +42,9 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 
     AtomicInteger passNum = new AtomicInteger(0);
     AtomicInteger failNum = new AtomicInteger(0);
+    AtomicInteger compareThreadNum = new AtomicInteger(0);
+
+
     Integer oldTableCounts = 0;
     int threadNum = 10;
 
@@ -458,10 +461,20 @@ public class CheckPositionServiceImpl implements CheckPositionService {
                     List<String> resultList;
                     List<String> resultListAll = new LinkedList<>();
                     for (int pageNo=pageNoStart; pageNo <= pageNoEnd; pageNo++) {
+//                        try {
+//                            while (oldTableValuesAll.size() == 10000) {
+//                                this.wait();
+//                            }
+//                        }catch (Exception e){
+//                            e.printStackTrace();
+//                            logger.error("---旧表没有数据---");
+////                            break;
+//                        }
+
                         resultList = getTableResults(querySql, pageNo, pageSize);
                         oldTableValuesAll.addAll(resultList);
                         resultListAll.addAll(resultList);  // 仅仅是为了得到数量
-                        resultListAll.notifyAll();
+                        oldTableValuesAll.notifyAll();
                     }
                     Integer dataTotal = resultListAll.size();
                     resultListAll = null; //gc
@@ -474,7 +487,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 
         }
 
-        class OldTableVsNewTableThread implements Runnable{
+        class OldTableVsNewTableThread implements Runnable {
             String threadName;
             //        String querySql;
             String newTable;
@@ -504,11 +517,10 @@ public class CheckPositionServiceImpl implements CheckPositionService {
             @Override
             public void run() {
                 synchronized (oldTableValuesAll) {
-                    try {
-                        TimeUnit.MILLISECONDS.sleep(1000);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+    //                    try {
+    //                        TimeUnit.MILLISECONDS.sleep(1000);
+    //                    } catch (Exception e) {
+    //                        e.printStackTrace();
 
                     AtomicInteger passCount = new AtomicInteger(0);
                     AtomicInteger failCount = new AtomicInteger(0);
@@ -516,10 +528,25 @@ public class CheckPositionServiceImpl implements CheckPositionService {
                     logger.error("-----oldTableValuesAll={}", oldTableValuesAll.size());
 
 
-
                     Iterator<String> it = oldTableValuesAll.iterator();
-
+                    int count = 0;
                     while(it.hasNext()) {
+                        compareThreadNum.incrementAndGet();
+                        while (compareThreadNum.get()%2000 == 0 ) {
+                            try {
+                                oldTableValuesAll.wait();
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+//                        count++;
+//                        if (oldTableValuesAll.isEmpty()) {
+//                            try {
+//                                oldTableValuesAll.wait();
+//                            } catch (InterruptedException e) {
+//                                e.printStackTrace();
+//                            }
+//                        }
                         String oldTableValue = it.next();
                         it.remove();
 //                    logger.error("---->oldTableValue={}", oldTableValue);
@@ -530,8 +557,33 @@ public class CheckPositionServiceImpl implements CheckPositionService {
                             failCount.incrementAndGet();
                         }
 
+                        oldTableValuesAll.notifyAll();
+
                     }
 
+
+
+         /*           try {
+                        while (oldTableValuesAll.size() == 10000) {
+                            this.wait();
+                        }
+
+                        String oldTableValue = oldTableValuesAll.get(0);
+                        oldTableValuesAll.remove(0);
+                        Boolean isPass = compareOldAndNewPass(newTable, newFields, newTableRelationField, oldTable, oldFields, oldTableValue);
+                        if (isPass) {
+                            passCount.incrementAndGet();
+                        } else {
+                            failCount.incrementAndGet();
+                        }
+                        this.notifyAll();
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        logger.error("----新表对比无数据----");
+//                        break;
+                    }
+*/
                     logger.error("线程-[{}]数据一致数量是：{}--数据不一致数量是：{}--->当前时间戳是:{}", threadName, passCount.get(), failCount.get(), System.currentTimeMillis());
 
                 }
@@ -723,7 +775,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 //            logger.info("新旧表数据不一致");
 //            this.failNum.incrementAndGet();
             isPass = false;
-            logger.info("新表{}[{}]结果：{}-->旧表{}[{}]结果：{}", newTableName, queryNewTableFields, JSON.toJSONString(newTableResult), oldTableName, queyOldTableFileds, oldTableValue);
+//            logger.info("-数据不一致--->新表{}[{}]结果：{}-->旧表{}[{}]结果：{}", newTableName, queryNewTableFields, JSON.toJSONString(newTableResult.get(0)), oldTableName, queyOldTableFileds, oldTableValue);
         }
         return isPass;
     }

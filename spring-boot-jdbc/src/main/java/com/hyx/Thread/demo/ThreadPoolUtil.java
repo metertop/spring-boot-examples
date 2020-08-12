@@ -94,7 +94,7 @@ public class ThreadPoolUtil {
         while (true) {
             boolean isAllDone = true;
             for (Future<?> taskResult : result) {
-//                logger.error("task---->{}", JSON.toJSONString(taskResult));
+                isAllDone &= ( taskResult.isDone() || taskResult.isCancelled() );
             }
             if (isAllDone) {
                 // 任务都执行完毕，跳出循环
