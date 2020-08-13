@@ -22,5 +22,7 @@ public interface CheckPositionService {
     void checkData3(CheckTableInfo checkTableInfo);
 
     void checkData4(CheckTableInfo checkTableInfo);
+
+    void checkData5(CheckTableInfo checkTableInfo);
 }
 

@@ -33,9 +33,9 @@ public class CheckDataController {
         checkTableInfo.setOldTableRelationField("id");   // 两个表的关联字段，最好是旧表的主键
         checkTableInfo.setNewTableRelationField("stu_point_id");
 
-        checkPositionService.checkData4(checkTableInfo);
-
 //        checkPositionService.checkData4(checkTableInfo);
+
+        checkPositionService.checkData5(checkTableInfo);
 
 
     }

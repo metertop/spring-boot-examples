@@ -1,8 +1,11 @@
 package com.lyh.demo;
 
+import com.google.common.collect.Lists;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 /**
  * @Description:
@@ -92,5 +95,13 @@ public class Test1 {
         logger.info("----->str2={}", str2);
     }
 
+
+    @Test
+    public void test5() {
+        List<String> listss = Lists.newArrayList("123,456,789","aa,bb,cc","dd,ee,ff","a,b,c","1,3,9");
+        List<List<String>> list1 = Lists.partition(listss, 2);
+        logger.info("list1==>{}", list1);
+        logger.info("list2==>{}", list1.get(0));
+    }
 
 }

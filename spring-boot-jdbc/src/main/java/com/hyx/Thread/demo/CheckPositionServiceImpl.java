@@ -44,6 +44,8 @@ public class CheckPositionServiceImpl implements CheckPositionService {
     AtomicInteger failNum = new AtomicInteger(0);
     AtomicInteger compareThreadNum = new AtomicInteger(0);
 
+    Integer totalPassNum = 0;
+    Integer totalFailNum = 0;
 
     Integer oldTableCounts = 0;
     int threadNum = 10;
@@ -273,7 +275,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 
         String newTable = checkTableInfo.getNewTable();
         String newTableRelationField = checkTableInfo.getNewTableRelationField();
-        String newFields = checkTableInfo.getQueryNewTableFileds();
+        String newFields = newTableRelationField + "," + checkTableInfo.getQueryNewTableFileds();
 
         String sqlCount = String.format("select count(1) as rowCount from %s where %s",  oldTable, whereCondition);
 
@@ -313,6 +315,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
         for (int i=0; i<threadNum; i++) {
 
             List<String> partList = oldTableResultsPartition.get(i);
+            logger.error("-----partList.size={}", partList.size());
             myDataThreadList.add(new CompareDataThread("线程-" + (i+1), oldTableSqlString,
                     partList, newTable, newFields, newTableRelationField, oldTable, oldFields));
         }
@@ -343,6 +346,11 @@ public class CheckPositionServiceImpl implements CheckPositionService {
             this.threadName = threadName;
             this.querySql = querySql;
             this.oldTableResult = oldTableResult;
+            this.newTable = newTable;
+            this.newFields = newFields;
+            this.newTableRelationField = newTableRelationField;
+            this.oldTable = oldTable;
+            this.oldFields = oldFields;
         }
 
         @Override
@@ -628,13 +636,181 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 
         }
 
-
-
         logger.error("2---oldTableValuesAll.size={}", oldTableValuesAll.size());
-
         threadPoolUtil.executeCompareTask(compareTablesThreadList);
 
 
+    }
+
+
+    @Override
+    public void checkData5(CheckTableInfo checkTableInfo){
+        String oldTable = checkTableInfo.getOldTable();
+        String oldRealtionField = checkTableInfo.getOldTableRelationField();
+        String oldFields = oldRealtionField + "," +checkTableInfo.getQueryOldTableFileds();    // id 在前
+        String whereCondition = checkTableInfo.getQueryOldTableWhereCondition();
+
+        String newTable = checkTableInfo.getNewTable();
+        String newTableRelationField = checkTableInfo.getNewTableRelationField();
+        String newFields = newTableRelationField + "," + checkTableInfo.getQueryNewTableFileds();
+
+
+        String sqlCount = String.format("select count(1) as rowCount from %s where %s",  oldTable, whereCondition);
+        String sqlContent = String.format("select %s from %s where %s", oldFields, oldTable, whereCondition);
+
+        logger.error("sqlCount-->{}", sqlCount);
+        logger.error("sqlContent-->{}", sqlContent);
+
+        String whereSql = "";
+        Integer pageSize = 10000;
+        Integer totalDataRows = getTableRows(oldTable, whereCondition)/100;
+        if (!whereCondition.trim().equals("") && whereCondition != null) {
+            whereSql = String.format("where %s", whereCondition);
+        }
+//        String oldTableSqlString = String.format("select %s from % %s", oldFileds, oldTable, whereSql);
+
+        String oldRefFields = StringUtil.getRefTableFields(oldFields);
+
+        String oldTableSqlString = String.format("select %s from %s as a inner join (select id from %s %s limit ?,?) as b on a.id=b.id"
+                ,oldRefFields, oldTable, oldTable, whereSql);
+
+        List<Runnable> getOldTableThreadList = new ArrayList<>();
+        List<Runnable> compareTablesThreadList = new ArrayList<>();
+
+        int pageCount = (int) Math.ceil(totalDataRows.doubleValue()/pageSize.doubleValue());   // 需要的总页数
+        int pageCountPerThread = pageCount/threadNum == 0 ? 1: pageCount/threadNum;   // 每个线程的页数为
+
+        logger.error("查询的数据量total={}", totalDataRows);
+        if (totalDataRows <= pageSize) {
+            logger.error("仅仅用1个线程即可");
+        } else {
+            logger.error("totalDataRows={},pageCount={},pageCountPerThread={}", totalDataRows, pageCount, pageCountPerThread);
+            int pageNoStart = 1;
+            int pageNoEnd = pageCountPerThread;
+            for (int i = 1; i <= threadNum; i++) {
+                if (i > pageCount){
+                    break;
+                }
+                if (i == threadNum) {    // 最后一个线程将多余数据进行查询
+                    pageNoEnd = pageCount;
+                }
+                String threadName = "线程" + i;
+                getOldTableThreadList.add(new GetOldValueThread2("线程" + i, oldTableSqlString, pageNoStart, pageNoEnd, pageSize));
+                logger.error("线程[{}]->pageNoStart={},pageNoEnd={},该线程需要使用页数={}", threadName, pageNoStart, pageNoEnd, pageCount);
+                pageNoStart += pageCountPerThread;
+                pageNoEnd = pageNoStart + pageCountPerThread-1;
+
+            }
+        }
+
+        threadPoolUtil.executeTasks(getOldTableThreadList);
+        logger.error("1---oldTableValuesAll.size={}", oldTableValuesAll.size());
+
+        int partOneSize = (int) Math.ceil(totalDataRows.doubleValue()/ threadNum);
+        List<Runnable> myDataThreadList = new ArrayList<>();
+        List<List<String>> oldTableResultsPartition = Lists.partition(oldTableValuesAll, partOneSize);
+//        logger.error("-----oldTableResultsPartition={}", oldTableResultsPartition);
+        for (int i=0; i<threadNum; i++) {
+
+            List<String> partList = oldTableResultsPartition.get(i);
+
+//            logger.error("-----partList={}", partList);
+            logger.error("-----partList.size={}", partList.size());
+            myDataThreadList.add(new OldTableVsNewTableThread2("线程-" + (i+1), newTable, newFields, newTableRelationField, oldTable, oldFields, partList));
+        }
+
+        threadPoolUtil.executeTasks(myDataThreadList);
+
+        logger.error("------总共----数据一致={}， 数据不一致={}", totalPassNum, totalFailNum);
+    }
+
+
+    class GetOldValueThread2 implements Runnable{
+        String threadName;
+        String querySql;
+        Integer pageSize;
+        Integer pageNoStart;
+        Integer pageNoEnd;
+
+        public GetOldValueThread2(String threadName, String querySql, Integer pageNoStart, Integer pageNoEnd,
+                                 Integer pageSize) {
+            this.threadName = threadName;
+            this.pageNoStart = pageNoStart;
+            this.pageNoEnd = pageNoEnd;
+            this.pageSize = pageSize;
+            this.querySql = querySql;
+        }
+        @Override
+        public void run() {
+            synchronized (oldTableValuesAll) {
+                List<String> resultList;
+                List<String> resultListAll = new LinkedList<>();
+                for (int pageNo=pageNoStart; pageNo <= pageNoEnd; pageNo++) {
+                    resultList = getTableResults(querySql, pageNo, pageSize);
+                    oldTableValuesAll.addAll(resultList);
+                    resultListAll.addAll(resultList);  // 仅仅是为了得到数量
+                    oldTableValuesAll.notifyAll();
+                }
+                Integer dataTotal = resultListAll.size();
+                resultListAll = null; //gc
+                logger.error("线程-[{}]旧表数据量为{}--->当前时间戳是:{}", threadName, dataTotal, System.currentTimeMillis());
+            }
+        }
+
+    }
+
+
+    class OldTableVsNewTableThread2 implements Runnable {
+        String threadName;
+        String newTable;
+        String newFields;
+        String newTableRelationField;
+        String oldTable;
+        String oldFields;
+        List<String> oldTableValues;
+
+
+        public OldTableVsNewTableThread2(String threadName,
+//                                        String querySql,
+                                        String newTable,
+                                        String newFields,
+                                        String newTableRelationField,
+                                        String oldTable,
+                                        String oldFields,
+                                        List<String> oldTableValues) {
+            this.threadName = threadName;
+            this.newTable = newTable;
+            this.newFields = newFields;
+            this.newTableRelationField = newTableRelationField;
+            this.oldTable = oldTable;
+            this.oldFields = oldFields;
+            this.oldTableValues = oldTableValues;
+        }
+
+
+        @Override
+        public void run() {
+            AtomicInteger passCount = new AtomicInteger(0);
+            AtomicInteger failCount = new AtomicInteger(0);
+
+            logger.error("---{} --oldTableValues={}", threadName, oldTableValues.size());
+
+            Iterator<String> it = oldTableValues.iterator();
+            while(it.hasNext()) {
+                compareThreadNum.incrementAndGet();
+                String oldTableValue = it.next();
+                Boolean isPass = compareOldAndNewPass(newTable, newFields, newTableRelationField, oldTable, oldFields, oldTableValue);
+                if (isPass) {
+                    passCount.incrementAndGet();
+                }else {
+                    failCount.incrementAndGet();
+                }
+            }
+            totalPassNum += passCount.get();
+            totalFailNum += failCount.get();
+            logger.error("线程-[{}]数据一致数量是：{}--数据不一致数量是：{}--->当前时间戳是:{}", threadName, passCount.get(), failCount.get(), System.currentTimeMillis());
+
+        }
     }
 
 
