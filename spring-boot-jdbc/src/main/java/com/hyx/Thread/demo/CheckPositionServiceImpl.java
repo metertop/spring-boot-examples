@@ -663,7 +663,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 
         String whereSql = "";
         Integer pageSize = 10000;
-        Integer totalDataRows = getTableRows(oldTable, whereCondition)/100;
+        Integer totalDataRows = getTableRows(oldTable, whereCondition);
         if (!whereCondition.trim().equals("") && whereCondition != null) {
             whereSql = String.format("where %s", whereCondition);
         }
@@ -707,7 +707,6 @@ public class CheckPositionServiceImpl implements CheckPositionService {
         logger.error("1---oldTableValuesAll.size={}", oldTableValuesAll.size());
 
         int partOneSize = (int) Math.ceil(totalDataRows.doubleValue()/ threadNum);
-        List<Runnable> myDataThreadList = new ArrayList<>();
         List<List<String>> oldTableResultsPartition = Lists.partition(oldTableValuesAll, partOneSize);
 //        logger.error("-----oldTableResultsPartition={}", oldTableResultsPartition);
         for (int i=0; i<threadNum; i++) {
@@ -716,10 +715,10 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 
 //            logger.error("-----partList={}", partList);
             logger.error("-----partList.size={}", partList.size());
-            myDataThreadList.add(new OldTableVsNewTableThread2("线程-" + (i+1), newTable, newFields, newTableRelationField, oldTable, oldFields, partList));
+            compareTablesThreadList.add(new OldTableVsNewTableThread2("线程-" + (i+1), newTable, newFields, newTableRelationField, oldTable, oldFields, partList));
         }
 
-        threadPoolUtil.executeTasks(myDataThreadList);
+        threadPoolUtil.executeTasks(compareTablesThreadList);
 
         logger.error("------总共----数据一致={}， 数据不一致={}", totalPassNum, totalFailNum);
     }
@@ -951,7 +950,7 @@ public class CheckPositionServiceImpl implements CheckPositionService {
 //            logger.info("新旧表数据不一致");
 //            this.failNum.incrementAndGet();
             isPass = false;
-//            logger.info("-数据不一致--->新表{}[{}]结果：{}-->旧表{}[{}]结果：{}", newTableName, queryNewTableFields, JSON.toJSONString(newTableResult.get(0)), oldTableName, queyOldTableFileds, oldTableValue);
+            logger.info("-数据不一致--->新表{}[{}]结果：{}-->旧表{}[{}]结果：{}", newTableName, queryNewTableFields, JSON.toJSONString(newTableResult.get(0)), oldTableName, queyOldTableFileds, oldTableValue);
         }
         return isPass;
     }
